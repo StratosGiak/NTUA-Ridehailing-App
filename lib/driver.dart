@@ -1,0 +1,1792 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:diacritic/diacritic.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:palette_generator/palette_generator.dart';
+import 'package:provider/provider.dart';
+import 'package:uni_pool/constants.dart';
+import 'package:uni_pool/main.dart';
+import 'package:uni_pool/passenger.dart';
+import 'package:uni_pool/providers.dart';
+import 'package:uni_pool/sensitive_storage.dart';
+import 'package:uni_pool/settings.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:uni_pool/socket_handler.dart';
+import 'package:flutter_map/flutter_map.dart';
+import "package:latlong2/latlong.dart";
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+
+class DriverPage extends StatefulWidget {
+  const DriverPage({super.key});
+  static const name = "Driver";
+  @override
+  State<DriverPage> createState() => _DriverPageState();
+}
+
+enum PopUpOptions { settings, signout }
+
+class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
+  List<Map<String, dynamic>> passengers = [];
+  final Stream _getPassengersStream =
+      Stream.periodic(const Duration(seconds: 2), (int count) {});
+  late StreamSubscription _getPassengersStreamSubscription;
+  late StreamSubscription<Position> positionStream;
+  final _modelNameController = TextEditingController();
+  final _licensePlateController = TextEditingController();
+  final mapController = MapController();
+  String? selectedCar;
+  bool inRadius = false;
+  bool driving = false;
+  bool waitingForPassengers = false;
+  bool requestTimeout = false;
+  bool passengersCancelled = false;
+  bool arrivedAtBusStop = false;
+  bool arrivedAtUniversity = false;
+  bool showArrived = false;
+  bool followDriver = true;
+  Timer? arrivedTimer;
+  Timer? refusedTimer;
+  Position? coordinates;
+  Timer? timer;
+
+  String _convertCharacter(String c) {
+    switch (c) {
+      case 'Α':
+        return 'A';
+      case 'Β':
+        return 'B';
+      case 'Ε':
+        return 'E';
+      case 'Ζ':
+        return 'Z';
+      case 'Η':
+        return 'H';
+      case 'Ι':
+        return 'I';
+      case 'Κ':
+        return 'K';
+      case 'Μ':
+        return 'M';
+      case 'Ν':
+        return 'N';
+      case 'Ο':
+        return 'O';
+      case 'Ρ':
+        return 'P';
+      case 'Τ':
+        return 'T';
+      case 'Υ':
+        return 'Y';
+      case 'Χ':
+        return 'X';
+      default:
+        return c;
+    }
+  }
+
+  String _normalizeLicensePlate(String text) {
+    var normalized =
+        text.toUpperCase().characters.map(_convertCharacter).toList();
+    switch (normalized[3]) {
+      case '-':
+        break;
+      case ' ':
+        normalized[3] = '-';
+        break;
+      default:
+        normalized.insert(3, '-');
+        break;
+    }
+    return normalized.join();
+  }
+
+  void socketDriverHandler(message) {
+    final decoded = jsonDecode(message);
+    final type = decoded['type'];
+    final data = decoded['data'];
+    debugPrint("received $type : $data");
+    if (type == typeNewDriver) {
+      if (_getPassengersStreamSubscription.isPaused) {
+        _getPassengersStreamSubscription.resume();
+      }
+    }
+    if (type == typeGetPassengers) {
+      if (!driving || waitingForPassengers) return;
+      if (!_getPassengersStreamSubscription.isPaused) {
+        _getPassengersStreamSubscription.pause();
+      }
+      HapticFeedback.heavyImpact();
+      requestTimeout = false;
+      passengersCancelled = false;
+      _acceptPassengers();
+    }
+    if (type == typeUpdatePassenger) {
+      if (!driving || !waitingForPassengers) return;
+      if (timer != null) {
+        timer!.cancel();
+      }
+      if (data['cancelled'] != null) {
+        debugPrint("${data['cancelled']}");
+        debugPrint("$passengers");
+        passengers.removeWhere((element) => element['id'] == data['cancelled']);
+        debugPrint("$passengers");
+        if (passengers.isEmpty) {
+          debugPrint("DELETED");
+          passengersCancelled = true;
+          waitingForPassengers = false;
+          arrivedAtBusStop = false;
+          if (_getPassengersStreamSubscription.isPaused) {
+            _getPassengersStreamSubscription.resume();
+          }
+        }
+      } else {
+        final index =
+            passengers.indexWhere((element) => element['id'] == data['id']);
+        if (index == -1) {
+          passengers.add(data);
+        } else {
+          passengers[index] = data;
+        }
+      }
+    }
+    if (type == typeAddCar) {
+      Provider.of<UserProvider>(context, listen: false)
+          .user
+          .cars['${data['car_id']}'] = data;
+    }
+    if (type == typeRemoveCar) {
+      Provider.of<UserProvider>(context, listen: false).user.cars.remove(data);
+      if (Provider.of<UserProvider>(context, listen: false).user.cars.isEmpty) {
+        selectedCar = null;
+      } else {
+        selectedCar =
+            Provider.of<UserProvider>(context, listen: false).user.cars[
+                Provider.of<UserProvider>(context, listen: false)
+                    .user
+                    .cars
+                    .keys
+                    .toList()[0]]!['car_id'];
+      }
+    }
+    setState(() {});
+  }
+
+  void _sendDriver() async {
+    if (!inRadius) {
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos == null) {
+        return;
+      }
+      coordinates = pos;
+      if (Geolocator.distanceBetween(coordinates!.latitude,
+              coordinates!.longitude, busStop.latitude, busStop.longitude) >
+          2500) {
+        return;
+      }
+      inRadius = true;
+      if (!mounted) return;
+      SocketConnection.channel.add(jsonEncode({
+        'type': typeNewDriver,
+        'data': {
+          'car': Provider.of<UserProvider>(context, listen: false)
+              .user
+              .cars[selectedCar],
+          'coords': {
+            "latitude": coordinates!.latitude,
+            "longitude": coordinates!.longitude
+          }
+        }
+      }));
+    } else {
+      SocketConnection.channel.add(jsonEncode({
+        'type': typeUpdateDriver,
+        'data': {
+          'coords': {
+            "latitude": coordinates!.latitude,
+            "longitude": coordinates!.longitude
+          }
+        }
+      }));
+    }
+  }
+
+  void _acceptPassengers() async {
+    bool? reply = await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return Dialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8.0)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(padding: EdgeInsets.all(10.0)),
+                  const Text(
+                    "Passengers are available. Accept them?",
+                    style:
+                        TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const Padding(padding: EdgeInsets.all(20.0)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton.filled(
+                        onPressed: () {
+                          Navigator.pop(context, true);
+                        },
+                        style: ButtonStyle(
+                            backgroundColor: MaterialStatePropertyAll(
+                                Colors.green.shade300)),
+                        iconSize: 50.0,
+                        icon: const Icon(Icons.check_rounded),
+                      ),
+                      IconButton.filled(
+                        onPressed: () {
+                          Navigator.pop(context, false);
+                        },
+                        style: ButtonStyle(
+                            backgroundColor:
+                                MaterialStatePropertyAll(Colors.red.shade300)),
+                        iconSize: 50.0,
+                        icon: const Icon(Icons.close_rounded),
+                      )
+                    ],
+                  ),
+                  const Padding(padding: EdgeInsets.all(10.0))
+                ],
+              ));
+        });
+    reply ??= false;
+    if (reply) {
+      waitingForPassengers = true;
+      SocketConnection.channel
+          .add(jsonEncode({'type': typePingPassengers, 'data': {}}));
+      timer = Timer(const Duration(seconds: 20), () {
+        requestTimeout = true;
+        waitingForPassengers = false;
+        arrivedAtBusStop = false;
+        setState(() {});
+      });
+    } else {
+      if (!_getPassengersStreamSubscription.isPaused) {
+        _getPassengersStreamSubscription.pause();
+      }
+      refusedTimer = Timer(const Duration(seconds: 60), () {
+        if (_getPassengersStreamSubscription.isPaused) {
+          _getPassengersStreamSubscription.resume();
+        }
+      });
+    }
+    setState(() {});
+  }
+
+  List<Marker> _passengersToMarkers() {
+    List<Marker> markers = [];
+    for (var passenger in passengers) {
+      markers.add(Marker(
+          height: 22,
+          width: 22,
+          point: LatLng(passenger["coords"]["latitude"],
+              passenger["coords"]["longitude"]),
+          child: Stack(children: [
+            Container(
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colors[
+                      int.parse(passenger["id"][passenger["id"].length - 1])],
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: const [
+                    BoxShadow(spreadRadius: 0.1, blurRadius: 3)
+                  ]),
+            ),
+          ])));
+    }
+    return markers;
+  }
+
+  void _moveCamera(MapController mapController, LatLng dest, double zoom) {
+    final camera = mapController.camera;
+    final latTween =
+        Tween<double>(begin: camera.center.latitude, end: dest.latitude);
+    final lngTween =
+        Tween<double>(begin: camera.center.longitude, end: dest.longitude);
+    final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
+    final controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1000));
+    final Animation<double> animation =
+        CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+    controller.addListener(() {
+      if (!waitingForPassengers) {
+        controller.dispose();
+        return;
+      }
+      mapController.move(
+          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+          zoomTween.evaluate(animation));
+    });
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+    controller.forward();
+  }
+
+  Widget _buildMap() {
+    if (mapUrl.isEmpty) return Container();
+    return FlutterMap(
+      mapController: mapController,
+      options: MapOptions(
+        initialCenter: const LatLng(37.9923, 23.7764),
+        initialZoom: 14.5,
+        minZoom: 14,
+        maxZoom: 16,
+        cameraConstraint: CameraConstraint.contain(
+            bounds: LatLngBounds(const LatLng(38.01304, 23.74121),
+                const LatLng(37.97043, 23.80078))),
+        interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.all - InteractiveFlag.rotate),
+        onPositionChanged: (position, hasGesture) {
+          if (hasGesture) {
+            followDriver = false;
+          }
+        },
+      ),
+      children: [
+        TileLayer(
+          urlTemplate:
+              'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=umhAaMGooyIsumfuR9Fi',
+          tileProvider: NetworkTileProvider(),
+          // tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
+          //     const LatLng(37.97043, 23.80078)),
+          errorTileCallback: (tile, error, stackTrace) {},
+          evictErrorTileStrategy: EvictErrorTileStrategy.dispose,
+        ),
+        MarkerLayer(markers: _passengersToMarkers()),
+        coordinates == null
+            ? Container()
+            : MarkerLayer(markers: [
+                Marker(
+                    point:
+                        LatLng(coordinates!.latitude, coordinates!.longitude),
+                    height: 16,
+                    width: 16,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.blue,
+                          boxShadow: [
+                            BoxShadow(spreadRadius: 0.1, blurRadius: 2)
+                          ]),
+                    ))
+              ]),
+        const Padding(padding: EdgeInsets.all(30)),
+        Align(
+            alignment: const Alignment(1, -0.95),
+            child: ElevatedButton(
+                onPressed: coordinates != null
+                    ? () {
+                        followDriver = true;
+                        setState(() {});
+                        _moveCamera(
+                            mapController,
+                            LatLng(
+                                coordinates!.latitude, coordinates!.longitude),
+                            mapController.camera.zoom);
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.all(5)),
+                child: Icon(
+                  followDriver ? Icons.gps_fixed : Icons.gps_not_fixed,
+                  size: 30,
+                ))),
+        const SimpleAttributionWidget(
+            source: Text("OpenStreetMap contributors")),
+        Visibility(
+            visible: showArrived,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white70),
+                  child: const Text(
+                    'Please wait for all passengers to board the car',
+                    style: TextStyle(fontSize: 30),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ))
+      ],
+    );
+  }
+
+  void _showPassengerPicture(int index) {
+    showDialog(
+        context: context,
+        barrierDismissible: true,
+        builder: (context) {
+          return Dialog(
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              insetPadding: EdgeInsets.zero,
+              child: ConstrainedBox(
+                  constraints: BoxConstraints.tight(
+                      Size.square(MediaQuery.of(context).size.width)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: FittedBox(
+                      child: CachedNetworkImage(
+                        imageUrl:
+                            'http://$mediaHost/media/images/users/${passengers[index]['picture']}',
+                        placeholder: (context, url) =>
+                            const CircularProgressIndicator(),
+                        errorWidget: (context, url, error) =>
+                            const Icon(Icons.error),
+                      ),
+                    ),
+                  )));
+        });
+  }
+
+  Widget _createPassengersList() {
+    if (waitingForPassengers) {
+      if (passengers.isEmpty) {
+        return const Center(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Waiting for passengers to respond...',
+                style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center),
+            Padding(padding: EdgeInsets.all(10.0)),
+            CircularProgressIndicator(),
+          ]),
+        );
+      }
+      List<Widget> children = [
+        Expanded(flex: 1, child: _buildMap()),
+        Container(
+          color: Colors.white,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  "Passengers",
+                  style: TextStyle(fontSize: 20),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              ListView.separated(
+                  shrinkWrap: true,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                        onTap: () {
+                          _moveCamera(
+                              mapController,
+                              LatLng(passengers[index]["coords"]["latitude"],
+                                  passengers[index]["coords"]["longitude"]),
+                              15.5);
+                        },
+                        leading: CircleAvatar(
+                          radius: 25.0,
+                          child: InkWell(
+                            onTap: () {
+                              _showPassengerPicture(index);
+                            },
+                            onLongPress: () {},
+                            child: Ink(
+                              color: Colors.black,
+                              child: passengers[index]['picture'] != null
+                                  ? CachedNetworkImage(
+                                      imageUrl:
+                                          "http://$mediaHost/media/images/users/${passengers[index]['picture']}",
+                                      imageBuilder: (context, imageProvider) =>
+                                          CircleAvatar(
+                                        radius: 25.0,
+                                        backgroundImage: imageProvider,
+                                      ),
+                                      placeholder: (context, url) =>
+                                          const SizedBox(
+                                              height: 50.0,
+                                              width: 50.0,
+                                              child:
+                                                  CircularProgressIndicator()),
+                                      errorWidget: (context, url, error) =>
+                                          const CircleAvatar(
+                                        radius: 26.0,
+                                        backgroundImage: AssetImage(
+                                            "assets/images/blank_profile.png"),
+                                      ),
+                                    )
+                                  : const CircleAvatar(
+                                      radius: 25.0,
+                                      backgroundImage: AssetImage(
+                                          "assets/images/blank_profile.png"),
+                                    ),
+                            ),
+                          ),
+                        ),
+                        title: Text("${passengers[index]['name']}"),
+                        subtitle: Row(
+                          children: [
+                            const Text("Rating:"),
+                            const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 3.0)),
+                            passengers[index]['ratings_count'] > 0
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      RatingBarIndicator(
+                                        itemSize: 22.0,
+                                        rating: passengers[index]
+                                                ['ratings_sum'] /
+                                            passengers[index]['ratings_count'],
+                                        itemBuilder: (context, index) =>
+                                            const Icon(
+                                          Icons.star_rounded,
+                                          color: Colors.amber,
+                                        ),
+                                      ),
+                                      const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 3.0)),
+                                      Text(
+                                          "(${passengers[index]['ratings_count']})"),
+                                    ],
+                                  )
+                                : const Text("N/A"),
+                          ],
+                        ),
+                        tileColor: Colors.white,
+                        trailing: Icon(
+                          Icons.circle,
+                          color: colors[int.parse(passengers[index]['id']
+                              [passengers[index]['id'].length - 1])],
+                        ));
+                  },
+                  separatorBuilder: (context, index) => const Divider(),
+                  itemCount: passengers.length),
+              const Padding(padding: EdgeInsets.all(8.0))
+            ],
+          ),
+        ),
+      ];
+      return Column(mainAxisSize: MainAxisSize.min, children: children);
+    }
+    List<Widget> children = [
+      Text(
+        'Looking for${requestTimeout || passengersCancelled ? " more" : ""} passengers...',
+        style: const TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+      ),
+      const Padding(padding: EdgeInsets.all(10.0)),
+      const CircularProgressIndicator(),
+    ];
+    if (requestTimeout || passengersCancelled) {
+      children.insert(
+          0,
+          Text(
+            requestTimeout
+                ? 'No passengers responded'
+                : 'All the passengers cancelled the ride',
+            style: const TextStyle(fontSize: 22.0),
+            textAlign: TextAlign.center,
+          ));
+    }
+    return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: children));
+  }
+
+  Widget _createCarList() {
+    final user = Provider.of<UserProvider>(context).user;
+    final cars = user.cars;
+    final keys = cars.keys.toList();
+    return Container(
+      color: const Color.fromARGB(123, 255, 255, 255),
+      child: ListView.separated(
+          shrinkWrap: true,
+          itemBuilder: (context, index) {
+            return ListTile(
+              onTap: () {},
+              onLongPress: () {},
+              title: Text(cars[keys[index]]!["model"]),
+              subtitle: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text("Seats: ${cars[keys[index]]!["seats"]}")),
+              leading: Radio<String>(
+                  value: keys[index],
+                  groupValue: selectedCar,
+                  onChanged: (value) {
+                    selectedCar = value!;
+                    setState(() {});
+                  }),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      final car = await _createCar(id: int.parse(keys[index]));
+                      if (car != null) {
+                        car["car_id"] = int.parse(keys[index]);
+                        SocketConnection.channel.add(
+                            jsonEncode({'type': typeUpdateCar, 'data': car}));
+                      }
+                    },
+                    icon: const Icon(Icons.edit),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      bool? reply = await showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: const Text('Really delete car?'),
+                              content:
+                                  const Text('This action cannot be undone'),
+                              actions: [
+                                TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context, true);
+                                    },
+                                    child: const Text('Yes')),
+                                TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context, false);
+                                    },
+                                    child: const Text('No'))
+                              ],
+                            );
+                          });
+                      if (reply ?? false) {
+                        SocketConnection.channel.add(jsonEncode(
+                            {'type': typeRemoveCar, 'data': keys[index]}));
+                      }
+                    },
+                    icon: const Icon(Icons.delete),
+                  ),
+                ],
+              ),
+            );
+          },
+          separatorBuilder: (context, index) => const Divider(),
+          itemCount: cars.length),
+    );
+  }
+
+  Future<String?> _pickCarImage() async {
+    try {
+      final selection = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 75,
+          requestFullMetadata: false);
+      if (selection == null) return null;
+      CroppedFile? cropped = await ImageCropper().cropImage(
+          sourcePath: selection.path,
+          aspectRatioPresets: [CropAspectRatioPreset.square],
+          uiSettings: [AndroidUiSettings()]);
+      if (cropped == null) return null;
+      return cropped.path;
+    } on PlatformException catch (e) {
+      debugPrint("Error: $e");
+      return null;
+    }
+  }
+
+  Future<String?> _uploadCarImage(
+      String path, String? previousImage, String? carId) async {
+    if (previousImage != null && carId != null) {
+      SocketConnection.channel.add(jsonEncode({
+        'type': typeDeletePicture,
+        'data': {'car_id': carId, 'picture': previousImage}
+      }));
+    }
+    var request = http.MultipartRequest(
+        'POST', Uri.parse('http://$mediaHost/media/images/cars'));
+    request.files.add(await http.MultipartFile.fromPath('file', path,
+        contentType: MediaType('image', 'png')));
+    final response = await http.Response.fromStream(await request.send());
+    if (response.statusCode == 200) {
+      return response.body;
+    }
+    return null;
+  }
+
+  Future<String?> _uploadUserImage(String path, String? previousImage) async {
+    if (previousImage != null) {
+      SocketConnection.channel.add(jsonEncode({
+        'type': typeDeletePicture,
+        'data': {'picture': previousImage}
+      }));
+    }
+    var request = http.MultipartRequest(
+        'POST', Uri.parse('http://$mediaHost/media/images/users'));
+    request.files.add(await http.MultipartFile.fromPath('file', path,
+        contentType: MediaType('image', 'png')));
+    final response = await http.Response.fromStream(await request.send());
+    if (response.statusCode == 200) {
+      return response.body;
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> _createCar({int? id}) async {
+    ValueNotifier<String?> imagePath = ValueNotifier(null);
+    ValueNotifier<Color?> finalColor = ValueNotifier(null);
+    final car = id != null
+        ? Provider.of<UserProvider>(context, listen: false).user.cars['$id']
+        : null;
+    if (car != null && car['color'] != null) {
+      finalColor.value = Color(int.parse(car['color']));
+    }
+    List<String> suggestions =
+        (await DefaultAssetBundle.of(context).loadString('assets/cars.txt'))
+            .split('\n');
+    if (!mounted) return Future(() => null);
+    return showDialog<Map<String, dynamic>>(
+        context: context,
+        builder: (context) {
+          ValueNotifier<int> seats = ValueNotifier<int>(2);
+          if (car != null) {
+            seats.value = car['seats'];
+            _licensePlateController.text = car['license'];
+            _modelNameController.text = car['model'];
+          }
+          final formKey = GlobalKey<FormState>();
+          return Center(
+            child: Stack(alignment: const FractionalOffset(0.5, 0), children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    color: Colors.transparent,
+                    height: 80,
+                    width: 160,
+                  ),
+                  Container(
+                    width: min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
+                    clipBehavior: Clip.hardEdge,
+                    decoration:
+                        BoxDecoration(borderRadius: BorderRadius.circular(24)),
+                    child: Material(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            const Padding(
+                                padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
+                            Text(
+                              car != null ? 'Edit car' : 'Create a car',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            Form(
+                              key: formKey,
+                              child: Column(
+                                children: [
+                                  Autocomplete<String>(
+                                    fieldViewBuilder: (context,
+                                        textEditingController,
+                                        focusNode,
+                                        onFieldSubmitted) {
+                                      if (car != null) {
+                                        textEditingController.text =
+                                            car['model'];
+                                      }
+                                      return TextFormField(
+                                        controller: textEditingController,
+                                        focusNode: focusNode,
+                                        decoration: const InputDecoration(
+                                            hintText: "Car model"),
+                                        validator: (value) => !suggestions
+                                                .contains(value)
+                                            ? "Please select a valid car model"
+                                            : null,
+                                        onEditingComplete: () {
+                                          _modelNameController.text =
+                                              textEditingController.text;
+                                        },
+                                      );
+                                    },
+                                    optionsBuilder: ((textEditingValue) {
+                                      if (textEditingValue.text == '') {
+                                        return const Iterable<String>.empty();
+                                      }
+                                      return suggestions.where((element) =>
+                                          removeDiacritics(
+                                                  element.toLowerCase())
+                                              .contains(textEditingValue.text
+                                                  .toLowerCase()));
+                                    }),
+                                    onSelected: (option) {
+                                      _modelNameController.text = option;
+                                    },
+                                  ),
+                                  TextFormField(
+                                      controller: _licensePlateController,
+                                      decoration: const InputDecoration(
+                                          hintText: "License plate"),
+                                      validator: (value) => value == null ||
+                                              !RegExp(r'^[AΑBΒEΕZΖHΗIΙKΚMΜNΝOΟPΡTΤYΥXΧ]{3}[- ]?[1-9]\d{3}$')
+                                                  .hasMatch(value.toUpperCase())
+                                          ? "Please enter a valid license plate number"
+                                          : null),
+                                ],
+                              ),
+                            ),
+                            const Padding(padding: EdgeInsets.all(8.0)),
+                            Row(
+                              children: [
+                                const Text("Available seats"),
+                                const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 10.0)),
+                                ValueListenableBuilder(
+                                    valueListenable: seats,
+                                    builder: (context, value, child) {
+                                      return IconButton(
+                                        onPressed: value > 1
+                                            ? () {
+                                                --seats.value;
+                                              }
+                                            : null,
+                                        icon: const Icon(Icons.remove),
+                                        iconSize: 30,
+                                      );
+                                    }),
+                                const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 6)),
+                                ValueListenableBuilder(
+                                    valueListenable: seats,
+                                    builder: (context, value, child) {
+                                      return Text(
+                                        '$value',
+                                        style: const TextStyle(fontSize: 16),
+                                      );
+                                    }),
+                                const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 6)),
+                                ValueListenableBuilder(
+                                    valueListenable: seats,
+                                    builder: (context, value, child) {
+                                      return IconButton(
+                                        onPressed: value < 3
+                                            ? () {
+                                                ++seats.value;
+                                              }
+                                            : null,
+                                        icon: const Icon(Icons.add),
+                                        iconSize: 30,
+                                      );
+                                    }),
+                              ],
+                            ),
+                            const Padding(padding: EdgeInsets.all(8.0)),
+                            Row(
+                              children: [
+                                const Text("Choose color"),
+                                const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 15.0)),
+                                IconButton(
+                                  onPressed: () async {
+                                    Color? reply = await showDialog(
+                                        context: context,
+                                        builder: (context) {
+                                          ValueNotifier<Color> newColor =
+                                              finalColor.value != null
+                                                  ? ValueNotifier(
+                                                      finalColor.value!)
+                                                  : ValueNotifier(
+                                                      Colors.red.shade900);
+                                          return Dialog(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(
+                                                  height: 300,
+                                                  width: 300,
+                                                  child: StatefulBuilder(
+                                                      builder:
+                                                          (context, setState) {
+                                                    return ColorWheelPicker(
+                                                      wheelWidth: 30,
+                                                      color: newColor.value,
+                                                      onChanged: (color) {
+                                                        newColor.value = color;
+                                                        setState(() {});
+                                                      },
+                                                      onWheel: (wheel) {},
+                                                    );
+                                                  }),
+                                                ),
+                                                const Padding(
+                                                    padding:
+                                                        EdgeInsets.all(8.0)),
+                                                ValueListenableBuilder(
+                                                    valueListenable: newColor,
+                                                    builder: (context, value,
+                                                        child) {
+                                                      return ColorIndicator(
+                                                        height: 60,
+                                                        width: 60,
+                                                        borderColor:
+                                                            Colors.black45,
+                                                        hasBorder: true,
+                                                        color: value,
+                                                      );
+                                                    }),
+                                                const Padding(
+                                                    padding:
+                                                        EdgeInsets.all(10.0)),
+                                                Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  children: [
+                                                    ValueListenableBuilder(
+                                                        valueListenable:
+                                                            newColor,
+                                                        builder: (context,
+                                                            value, child) {
+                                                          return TextButton(
+                                                              onPressed: () {
+                                                                Navigator.pop(
+                                                                    context,
+                                                                    value);
+                                                              },
+                                                              child: const Text(
+                                                                  "Select"));
+                                                        }),
+                                                    const Padding(
+                                                        padding: EdgeInsets
+                                                            .symmetric(
+                                                                horizontal:
+                                                                    8.0)),
+                                                    TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              context, null);
+                                                        },
+                                                        child: const Text(
+                                                            "Cancel"))
+                                                  ],
+                                                )
+                                              ],
+                                            ),
+                                          );
+                                        });
+                                    if (reply != null) {
+                                      finalColor.value = reply;
+                                    }
+                                  },
+                                  icon: ValueListenableBuilder(
+                                      valueListenable: finalColor,
+                                      builder: (context, value, child) {
+                                        if (value == null) {
+                                          return const Icon(
+                                            Icons.palette,
+                                            size: 30,
+                                          );
+                                        }
+                                        return ColorIndicator(
+                                          borderColor: Colors.black45,
+                                          hasBorder: true,
+                                          color: value,
+                                        );
+                                      }),
+                                ),
+                                ValueListenableBuilder(
+                                    valueListenable: finalColor,
+                                    builder: (context, value, child) {
+                                      return Visibility(
+                                        visible: value != null,
+                                        child: IconButton(
+                                            onPressed: () {
+                                              finalColor.value = null;
+                                            },
+                                            icon: const Icon(Icons.clear)),
+                                      );
+                                    })
+                              ],
+                            ),
+                            const Padding(padding: EdgeInsets.all(8)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                ValueListenableBuilder(
+                                    valueListenable: imagePath,
+                                    builder: (context, value, child) {
+                                      return TextButton(
+                                          onPressed: () async {
+                                            if (formKey.currentState!
+                                                .validate()) {
+                                              String? imageName;
+                                              if (value != null) {
+                                                debugPrint("$car");
+                                                imageName =
+                                                    await _uploadCarImage(
+                                                        value,
+                                                        car?['picture'],
+                                                        id?.toString());
+                                              }
+                                              final modelName =
+                                                  _modelNameController.text;
+                                              final licensePlate =
+                                                  _normalizeLicensePlate(
+                                                      _licensePlateController
+                                                          .text);
+                                              if (!mounted) return;
+                                              Navigator.pop(context, {
+                                                "model": modelName,
+                                                "license": licensePlate,
+                                                "seats": seats.value,
+                                                "picture": imageName ??
+                                                    car?['picture'],
+                                                "color": finalColor.value?.value
+                                                    .toString(),
+                                              });
+                                            }
+                                          },
+                                          child: const Text("Ok"));
+                                    }),
+                                TextButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text("Cancel")),
+                              ],
+                            ),
+                            const Padding(padding: EdgeInsets.all(5))
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                onPressed: () async {
+                  imagePath.value = await _pickCarImage();
+                  if (imagePath.value == null) return;
+                  finalColor.value = (await PaletteGenerator.fromImageProvider(
+                          Image.file(File(imagePath.value!)).image))
+                      .dominantColor
+                      ?.color;
+                },
+                iconSize: 40,
+                icon: CircleAvatar(
+                  radius: 70,
+                  child: ClipRRect(
+                      borderRadius: BorderRadius.circular(70),
+                      child: ValueListenableBuilder(
+                          valueListenable: imagePath,
+                          builder: (context, value, child) {
+                            if (value != null) {
+                              return Image.file(File(value));
+                            }
+                            if (car != null && car['picture'] != null) {
+                              return CachedNetworkImage(
+                                imageUrl:
+                                    'http://$mediaHost/media/images/cars/${car['picture']}',
+                                placeholder: (context, url) {
+                                  return const CircularProgressIndicator();
+                                },
+                              );
+                            }
+                            return Stack(
+                                alignment: AlignmentDirectional.center,
+                                children: [
+                                  Container(
+                                      height: 160,
+                                      width: 160,
+                                      color: Colors.grey.shade50,
+                                      child: Icon(
+                                        Icons.add_photo_alternate,
+                                        color: Colors.grey.shade600,
+                                        size: 50,
+                                      )),
+                                  Positioned(
+                                      bottom: 24,
+                                      child: Text(
+                                        'Add car photo',
+                                        style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                            fontSize: 15),
+                                      ))
+                                ]);
+                          })),
+                ),
+              ),
+            ]),
+          );
+        }).then((value) {
+      _modelNameController.clear();
+      _licensePlateController.clear();
+      return value;
+    });
+  }
+
+  Widget _buildDriverScreen() {
+    var children = <Widget>[];
+    if (!driving) {
+      if (Provider.of<UserProvider>(context).user.cars.isEmpty) {
+        children = [
+          const SizedBox(
+            height: 100,
+          ),
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              "Add a car to continue",
+              style: TextStyle(fontSize: 20),
+            ),
+          )
+        ];
+      } else {
+        children
+          ..add(
+            const SizedBox(
+              height: 10,
+            ),
+          )
+          ..add(const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Text(
+                "Select car",
+                style: TextStyle(fontSize: 20),
+              )))
+          ..add(Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _createCarList(),
+          ));
+      }
+      children.add(Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: ElevatedButton(
+          onPressed: Provider.of<UserProvider>(context).user.cars.length >= 3
+              ? null
+              : () async {
+                  final car = await _createCar();
+                  if (car != null) {
+                    SocketConnection.channel
+                        .add(jsonEncode({'type': typeAddCar, 'data': car}));
+                  }
+                },
+          style: ElevatedButton.styleFrom(
+              shape: const CircleBorder(),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.all(8.0)),
+          child: const Icon(Icons.add),
+        ),
+      ));
+    }
+    if (driving) {
+      if (!inRadius) {
+        children.add(const Expanded(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Text(
+                "The app will start looking for passengers once you get close to the bus stop",
+                style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ));
+      } else {
+        return _createPassengersList();
+      }
+    }
+    return Center(
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  Future<String?> _pickUserImage() async {
+    try {
+      final selection = await ImagePicker().pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 75,
+          requestFullMetadata: false);
+      if (selection == null) return null;
+      CroppedFile? cropped = await ImageCropper().cropImage(
+          sourcePath: selection.path,
+          aspectRatioPresets: [CropAspectRatioPreset.square],
+          uiSettings: [AndroidUiSettings()]);
+      if (cropped == null) return null;
+      return cropped.path;
+    } on PlatformException catch (e) {
+      debugPrint("Error: $e");
+      return null;
+    }
+  }
+
+  Future _showProfile() async {
+    ValueNotifier<String?> imagePath = ValueNotifier(
+        Provider.of<UserProvider>(context, listen: false).user.picture);
+    final user = Provider.of<UserProvider>(context, listen: false).user;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return Center(
+          child: Stack(
+            alignment: const FractionalOffset(0.5, 0),
+            children: [
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    color: Colors.transparent,
+                    height: 80,
+                    width: 160,
+                  ),
+                  Container(
+                    width: min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
+                    clipBehavior: Clip.hardEdge,
+                    decoration:
+                        BoxDecoration(borderRadius: BorderRadius.circular(24)),
+                    child: Material(
+                      color: Theme.of(context).scaffoldBackgroundColor,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            const Padding(
+                                padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
+                            Text(
+                              user.name,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2.0)),
+                            Text(
+                              user.id,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8.0)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                RatingBarIndicator(
+                                  itemSize: 36.0,
+                                  rating: user.ratingsSum / user.ratingsCount,
+                                  itemBuilder: (context, index) => const Icon(
+                                    Icons.star_rounded,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                                const Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 4.0)),
+                                Text("(${user.ratingsCount})"),
+                              ],
+                            ),
+                            const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 5.0)),
+                            TextButton(
+                                onPressed: () async {
+                                  bool? reply = await showDialog(
+                                      context: context,
+                                      builder: (context) {
+                                        return AlertDialog(
+                                          title: const Text('Really sign out?'),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context, true);
+                                                },
+                                                child: const Text('Yes')),
+                                            TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(context, false);
+                                                },
+                                                child: const Text('No'))
+                                          ],
+                                        );
+                                      });
+                                  reply = reply ?? false;
+                                  if (!mounted) return;
+                                  if (reply) {
+                                    SecureStorage.deleteAllSecure();
+                                    SocketConnection.channel.add(jsonEncode(
+                                        {'type': typeSignout, 'data': {}}));
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const WelcomePage()),
+                                    );
+                                  }
+                                },
+                                child: const Text(
+                                  "Sign out",
+                                  style: TextStyle(fontSize: 16.0),
+                                )),
+                            const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2.0)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+              IconButton(
+                onPressed: () async {
+                  final newImage = await _pickUserImage();
+                  if (newImage != null) {
+                    imagePath.value =
+                        await _uploadUserImage(newImage, imagePath.value);
+                    if (!mounted) return;
+                    SocketConnection.channel.add(jsonEncode({
+                      'type': typeUpdateUserPicture,
+                      'data': imagePath.value
+                    }));
+                    Provider.of<UserProvider>(context, listen: false)
+                        .user
+                        .picture = imagePath.value;
+                    setState(() {});
+                  }
+                },
+                iconSize: 40,
+                icon: CircleAvatar(
+                  radius: 70,
+                  child: ClipRRect(
+                      borderRadius: BorderRadius.circular(70),
+                      child: ValueListenableBuilder(
+                          valueListenable: imagePath,
+                          builder: (context, value, child) {
+                            if (value != null) {
+                              return CachedNetworkImage(
+                                imageUrl:
+                                    'http://$mediaHost/media/images/users/$value',
+                                placeholder: (context, url) {
+                                  return const CircularProgressIndicator();
+                                },
+                              );
+                            }
+                            return Stack(
+                                alignment: AlignmentDirectional.center,
+                                children: [
+                                  Container(
+                                      height: 160,
+                                      width: 160,
+                                      color: Colors.grey.shade50,
+                                      child: Icon(
+                                        Icons.add_photo_alternate,
+                                        color: Colors.grey.shade600,
+                                        size: 50,
+                                      )),
+                                  Positioned(
+                                      bottom: 24,
+                                      child: Text(
+                                        'Add photo',
+                                        style: TextStyle(
+                                            color: Colors.grey.shade700,
+                                            fontSize: 15),
+                                      ))
+                                ]);
+                          })),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFAB() {
+    return FloatingActionButton.large(
+        heroTag: 'FAB1',
+        tooltip: driving ? 'Stop driving' : 'Start driving',
+        shape: const CircleBorder(),
+        onPressed: selectedCar != null
+            ? () {
+                if (driving) {
+                  if (!_getPassengersStreamSubscription.isPaused) {
+                    _getPassengersStreamSubscription.pause();
+                  }
+                  if (!positionStream.isPaused) {
+                    positionStream.pause();
+                  }
+                  if (timer != null) {
+                    timer!.cancel();
+                  }
+                  if (refusedTimer != null) {
+                    refusedTimer!.cancel();
+                  }
+                  driving = false;
+                  inRadius = false;
+                  waitingForPassengers = false;
+                  passengersCancelled = false;
+                  requestTimeout = false;
+                  passengers = [];
+                  SocketConnection.channel
+                      .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
+                  setState(() {});
+                } else {
+                  if (positionStream.isPaused) {
+                    positionStream.resume();
+                  }
+                  driving = true;
+                  _sendDriver();
+                  setState(() {});
+                }
+              }
+            : null,
+        child: Icon(
+          !driving ? Icons.play_arrow_rounded : Icons.stop_rounded,
+          size: 50,
+        ));
+  }
+
+  Future<bool> _stopDriverDialog() async {
+    if (passengers.isEmpty) return Future.value(true);
+    bool? reply = await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Really switch to passenger mode?'),
+            content: const Text('The current ride will be cancelled'),
+            actions: [
+              TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text('Yes')),
+              TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, false);
+                  },
+                  child: const Text('No'))
+            ],
+          );
+        });
+    return reply ?? false;
+  }
+
+  Future _arrivedDialog() async {
+    List<ValueNotifier<double>> ratings =
+        List.generate(passengers.length, (index) => ValueNotifier(0));
+    List<Widget> ratingBars = List.generate(
+        passengers.length,
+        (index) => ValueListenableBuilder(
+            valueListenable: ratings[index],
+            builder: (context, value, child) {
+              return Row(
+                children: [
+                  RatingBar.builder(
+                      itemSize: 36,
+                      glow: false,
+                      initialRating: value,
+                      minRating: 1,
+                      itemBuilder: (context, index) => const Icon(
+                            Icons.star_rounded,
+                            color: Colors.amber,
+                          ),
+                      onRatingUpdate: (rating) {
+                        ratings[index].value = rating;
+                      }),
+                  Visibility(
+                    visible: value != 0,
+                    maintainSize: true,
+                    maintainAnimation: true,
+                    maintainState: true,
+                    child: IconButton(
+                        onPressed: () {
+                          ratings[index].value = 0;
+                        },
+                        iconSize: 30,
+                        icon: const Icon(Icons.close)),
+                  ),
+                ],
+              );
+            }));
+    await showDialog<List<double>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return Dialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(padding: EdgeInsets.symmetric(vertical: 14.0)),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    "You have reached your destination!",
+                    style:
+                        TextStyle(fontSize: 26.0, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    "Please rate your experience with the passengers (optional)",
+                    style: TextStyle(fontSize: 16.0),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
+                ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: passengers.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text("${passengers[index]['name']}"),
+                      leading: passengers[index]['picture'] != null
+                          ? CachedNetworkImage(
+                              imageUrl:
+                                  "http://$mediaHost/media/images/users/${passengers[index]['picture']}",
+                              imageBuilder: (context, imageProvider) =>
+                                  CircleAvatar(
+                                radius: 26.0,
+                                backgroundImage: imageProvider,
+                              ),
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(),
+                              errorWidget: (context, url, error) =>
+                                  const CircleAvatar(
+                                radius: 26.0,
+                                backgroundImage: AssetImage(
+                                    "assets/images/blank_profile.png"),
+                              ),
+                            )
+                          : const CircleAvatar(
+                              radius: 26.0,
+                              backgroundImage:
+                                  AssetImage("assets/images/blank_profile.png"),
+                            ),
+                      subtitle: ratingBars[index],
+                    );
+                  },
+                  separatorBuilder: (context, index) => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6.0)),
+                ),
+                Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            "Submit",
+                            style: TextStyle(fontSize: 18.0),
+                          )),
+                    )),
+              ],
+            ),
+          );
+        });
+    return ratings.map((e) => e.value).toList();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    SocketConnection.receiveSubscription.onData(socketDriverHandler);
+    _getPassengersStreamSubscription = _getPassengersStream.listen((event) {
+      SocketConnection.channel
+          .add(jsonEncode({'type': typeGetPassengers, 'data': {}}));
+    });
+    _getPassengersStreamSubscription.pause();
+    positionStream = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 20,
+    )).listen((Position? position) async {
+      if (position == null) {
+        debugPrint('Unknown position');
+        return;
+      }
+      coordinates = position;
+      _sendDriver();
+      if (arrivedAtBusStop && followDriver) {
+        _moveCamera(
+            mapController,
+            LatLng(coordinates!.latitude, coordinates!.longitude),
+            mapController.camera.zoom);
+      }
+      if (passengers.isNotEmpty &&
+          Geolocator.distanceBetween(position.latitude, position.longitude,
+                  busStop.latitude, busStop.longitude) <
+              100 &&
+          !arrivedAtBusStop) {
+        arrivedAtBusStop = true;
+        showArrived = true;
+        _moveCamera(mapController, busStop, 15.5);
+        arrivedTimer = Timer(const Duration(seconds: 5), () {
+          showArrived = false;
+          setState(() {});
+        });
+      }
+      if (passengers.isNotEmpty &&
+          Geolocator.distanceBetween(position.latitude, position.longitude,
+                  university.latitude, university.longitude) <
+              300 &&
+          arrivedAtBusStop &&
+          !arrivedAtUniversity) {
+        arrivedAtUniversity = true;
+        _getPassengersStreamSubscription.cancel();
+        _moveCamera(mapController,
+            LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
+        SocketConnection.channel
+            .add(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
+        final List<double> ratings = await _arrivedDialog();
+        if (!mounted) return;
+        SocketConnection.channel.add(jsonEncode({
+          'type': typeSendRatings,
+          'data': {
+            'users': passengers.map((e) => e['id']).toList(),
+            'ratings': ratings
+          }
+        }));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomePage()),
+        );
+      }
+      setState(() {});
+    });
+    positionStream.pause();
+  }
+
+  @override
+  void dispose() {
+    _getPassengersStreamSubscription.cancel();
+    positionStream.cancel();
+    _modelNameController.dispose();
+    _licensePlateController.dispose();
+    mapController.dispose();
+    if (timer != null) {
+      timer!.cancel();
+    }
+    if (refusedTimer != null) {
+      refusedTimer!.cancel();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      appBar: AppBar(
+          title: const Text('Driver'),
+          leading: Visibility(
+              visible: passengers.isNotEmpty,
+              child: IconButton(
+                  onPressed: () async {
+                    if (await _stopDriverDialog() && mounted) {
+                      if (driving) {
+                        SocketConnection.channel.add(
+                            jsonEncode({'type': typeStopDriver, 'data': {}}));
+                      }
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const PassengerPage()),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back))),
+          actions: [
+            IconButton(
+              onPressed: () async {
+                if (await _stopDriverDialog() && mounted) {
+                  if (driving) {
+                    SocketConnection.channel
+                        .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
+                  }
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const PassengerPage()),
+                  );
+                }
+              },
+              iconSize: 26.0,
+              icon: const Icon(Icons.directions_walk),
+              tooltip: 'Switch to passenger mode',
+            ),
+            IconButton(
+                onPressed: _showProfile,
+                icon: Provider.of<UserProvider>(context, listen: false)
+                            .user
+                            .picture !=
+                        null
+                    ? CachedNetworkImage(
+                        imageUrl:
+                            "http://$mediaHost/media/images/users/${Provider.of<UserProvider>(context, listen: false).user.picture}",
+                        imageBuilder: (context, imageProvider) => CircleAvatar(
+                          radius: 18.0,
+                          backgroundImage: imageProvider,
+                        ),
+                        placeholder: (context, url) =>
+                            const CircularProgressIndicator(),
+                        errorWidget: (context, url, error) =>
+                            const CircleAvatar(
+                          radius: 18.0,
+                          backgroundImage:
+                              AssetImage("assets/images/blank_profile.png"),
+                        ),
+                      )
+                    : const CircleAvatar(
+                        radius: 18.0,
+                        backgroundImage:
+                            AssetImage('assets/images/blank_profile.png'),
+                      )),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
+          ]),
+      body: _buildDriverScreen(),
+      floatingActionButton: Visibility(
+        visible: selectedCar != null && passengers.isEmpty,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Align(alignment: Alignment.bottomCenter, child: _buildFAB()),
+        ),
+      ),
+    );
+  }
+}
