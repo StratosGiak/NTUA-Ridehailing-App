@@ -65,6 +65,7 @@ enum TypeOfUser { driver, passenger }
 
 class _WelcomePageState extends State<WelcomePage> {
   bool _loggedIn = false;
+  bool? _connected;
 
   void socketLoginHandler(message) {
     final decoded = jsonDecode(message);
@@ -78,6 +79,14 @@ class _WelcomePageState extends State<WelcomePage> {
       SecureStorage.storeValueSecure(LoginInfo.token, data['token']);
       _loggedIn = true;
       mapUrl = data['mapUrl'];
+    }
+    setState(() {});
+  }
+
+  void connectionHandler(message) async {
+    if (message == "done" || message == "error") {
+      _connected = false;
+      _loggedIn = false;
     }
     setState(() {});
   }
@@ -110,6 +119,16 @@ class _WelcomePageState extends State<WelcomePage> {
       SocketConnection.channel
           .add(jsonEncode({'type': typeLogin, 'data': jsonResponse}));
     }
+  }
+
+  void _connect() async {
+    _connected = null;
+    setState(() {});
+    _connected = await SocketConnection.create();
+    if (_connected!) {
+      _checkLoggedIn();
+    }
+    setState(() {});
   }
 
   Future<bool> _signOutAlert() async {
@@ -331,10 +350,10 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
     SocketConnection.receiveSubscription.onData(socketLoginHandler);
+    SocketConnection.connectionSubscription.onData(connectionHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _getLocationPermission();
-      if (await SocketConnection.create() == null) {}
-      _checkLoggedIn();
+      _connect();
     });
   }
 
@@ -400,12 +419,25 @@ class _WelcomePageState extends State<WelcomePage> {
             ),
             const Spacer(flex: 10),
             TextButton(
-                onPressed: _loggedIn ? null : _logInRequest,
-                child: Text(
-                  _loggedIn
-                      ? 'Logged in as ${Provider.of<UserProvider>(context).user.name}'
-                      : 'Login',
-                  style: const TextStyle(fontSize: 30),
+                onPressed: _connected == null || _loggedIn
+                    ? null
+                    : _connected!
+                        ? _logInRequest
+                        : _connect,
+                child: Builder(
+                  builder: (context) {
+                    return Text(
+                      _connected == null
+                          ? 'Connecting...'
+                          : !_connected!
+                              ? 'Connection failed\nPress to retry'
+                              : _loggedIn
+                                  ? 'Logged in as ${Provider.of<UserProvider>(context).user.name}'
+                                  : 'Login',
+                      style: const TextStyle(fontSize: 30),
+                      textAlign: TextAlign.center,
+                    );
+                  },
                 )),
             Visibility(
               visible: !_loggedIn,
