@@ -2,16 +2,22 @@ import 'dart:async';
 
 import 'package:latlong2/latlong.dart';
 
-const apiHost = "ntua-ridehailing.dslab.ece.ntua.gr";
-const mediaHost = "ntua-ridehailing.dslab.ece.ntua.gr";
+const apiHost = "192.168.1.119:16820";
+const mediaHost = "192.168.1.119:28563";
 String mapUrl = "";
 StreamController<String> wsStreamController = StreamController.broadcast();
+
+enum TypeOfUser { driver, passenger }
+
+enum TypeOfImage { users, cars }
 
 const busStop = LatLng(37.9923, 23.7764);
 const university = LatLng(37.978639, 23.782778);
 
-const profileImageQuality = 75;
+const userImageQuality = 75;
 const carImageQuality = 75;
+
+const connectionTimeout = 5;
 
 const typeLogin = "!LOGIN";
 const typeUpdateDriver = "!UPDATEDRIVER";

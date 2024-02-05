@@ -31,10 +31,8 @@ class PassengerPage extends StatefulWidget {
   State<PassengerPage> createState() => _PassengerPageState();
 }
 
-enum PopUpOptions { settings, signout }
-
 class _PassengerPageState extends State<PassengerPage>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   Map<String, dynamic>? driver;
   late StreamSubscription<Position> positionStream;
   ListQueue<LatLng> driverPositions = ListQueue();
@@ -47,7 +45,7 @@ class _PassengerPageState extends State<PassengerPage>
   bool showArrived = false;
   bool followDriver = true;
   Timer? arrivedTimer;
-  Timer? refusedTimer;
+  Timer? refusedCooldownTimer;
 
   void socketPassengerHandler(message) async {
     final decoded = jsonDecode(message);
@@ -295,14 +293,15 @@ class _PassengerPageState extends State<PassengerPage>
   void _acceptDriver() async {
     int initalSeconds = 20;
     ValueNotifier<int> remainingSeconds = ValueNotifier(initalSeconds);
-    Timer timerDisplay = Timer.periodic(const Duration(seconds: 1), (timer) {
+    Timer countdownSecTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) {
       if (remainingSeconds.value > 0) {
         --remainingSeconds.value;
       } else {
         timer.cancel();
       }
     });
-    Timer timerDismiss = Timer(Duration(seconds: initalSeconds), () {
+    Timer countdownDismissTimer = Timer(Duration(seconds: initalSeconds), () {
       Navigator.of(context, rootNavigator: true).pop(false);
     });
     bool? reply = await showDialog<bool>(
@@ -367,8 +366,8 @@ class _PassengerPageState extends State<PassengerPage>
                 ],
               ));
         }).then((value) {
-      timerDisplay.cancel();
-      timerDismiss.cancel();
+      countdownSecTimer.cancel();
+      countdownDismissTimer.cancel();
       return value;
     });
     reply ??= false;
@@ -381,7 +380,7 @@ class _PassengerPageState extends State<PassengerPage>
       } else {
         SocketConnection.channel
             .add(jsonEncode({'type': typeStopPassenger, 'data': {}}));
-        refusedTimer = Timer(const Duration(seconds: 30), () {
+        refusedCooldownTimer = Timer(const Duration(seconds: 30), () {
           SocketConnection.channel.add(jsonEncode({
             'type': typeNewPassenger,
             'data': {
@@ -820,9 +819,9 @@ class _PassengerPageState extends State<PassengerPage>
   }
 
   Future _showProfile() async {
-    ValueNotifier<String?> imagePath = ValueNotifier(
-        Provider.of<UserProvider>(context, listen: false).user.picture);
-    final user = Provider.of<UserProvider>(context, listen: false).user;
+    ValueNotifier<String?> imagePath =
+        ValueNotifier(Provider.of<User>(context, listen: false).picture);
+    final user = Provider.of<User>(context, listen: false);
     await showDialog(
       context: context,
       builder: (context) {
@@ -944,9 +943,8 @@ class _PassengerPageState extends State<PassengerPage>
                       'type': typeUpdateUserPicture,
                       'data': imagePath.value
                     }));
-                    Provider.of<UserProvider>(context, listen: false)
-                        .user
-                        .picture = imagePath.value;
+                    Provider.of<User>(context, listen: false).picture =
+                        imagePath.value;
                     setState(() {});
                   }
                 },
@@ -1021,8 +1019,8 @@ class _PassengerPageState extends State<PassengerPage>
   void dispose() {
     positionStream.cancel();
     mapController.dispose();
-    if (refusedTimer != null) {
-      refusedTimer!.cancel();
+    if (refusedCooldownTimer != null) {
+      refusedCooldownTimer!.cancel();
     }
     super.dispose();
   }
@@ -1036,11 +1034,11 @@ class _PassengerPageState extends State<PassengerPage>
               if (await _stopPassengerDialog() && mounted && inRadius) {
                 SocketConnection.channel
                     .add(jsonEncode({'type': typeStopPassenger, 'data': {}}));
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const DriverPage()),
-                );
               }
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DriverPage()),
+              );
             },
             iconSize: 26.0,
             icon: const Icon(Icons.directions_car),
@@ -1048,13 +1046,10 @@ class _PassengerPageState extends State<PassengerPage>
           ),
           IconButton(
               onPressed: _showProfile,
-              icon: Provider.of<UserProvider>(context, listen: false)
-                          .user
-                          .picture !=
-                      null
+              icon: Provider.of<User>(context, listen: false).picture != null
                   ? CachedNetworkImage(
                       imageUrl:
-                          "http://$mediaHost/media/images/users/${Provider.of<UserProvider>(context, listen: false).user.picture}",
+                          "http://$mediaHost/media/images/users/${Provider.of<User>(context, listen: false).picture}",
                       imageBuilder: (context, imageProvider) => CircleAvatar(
                         radius: 18.0,
                         backgroundImage: imageProvider,

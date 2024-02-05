@@ -4,7 +4,7 @@ class Car {
   Map<String, dynamic> make = {};
 }
 
-class User {
+class User with ChangeNotifier {
   String id;
   String name;
   String? picture;
@@ -26,15 +26,27 @@ class User {
         ratingsSum = map['ratings_sum'],
         ratingsCount = map['ratings_count'],
         cars = map['cars'];
-}
 
-class UserProvider with ChangeNotifier {
-  User _user = User();
-
-  void setUser(User newUser) {
-    _user = newUser;
+  void setUser({Map<String, dynamic>? user}) {
+    if (user != null) {
+      id = user['id'];
+      name = user['name'];
+      picture = user['picture'];
+      ratingsSum = user['ratings_sum'];
+      ratingsCount = user['ratings_count'];
+      cars = user['cars'];
+    } else {
+      id = 'INVALID';
+      name = '';
+      ratingsSum = 0;
+      ratingsCount = 0;
+      cars = {};
+    }
     notifyListeners();
   }
 
-  User get user => _user;
+  void setUserPicture(String newPicture) {
+    picture = newPicture;
+    notifyListeners();
+  }
 }

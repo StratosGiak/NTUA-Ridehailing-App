@@ -15,16 +15,15 @@ import 'package:uni_pool/constants.dart';
 import 'package:uni_pool/main.dart';
 import 'package:uni_pool/passenger.dart';
 import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/settings.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:flutter_map/flutter_map.dart';
 import "package:latlong2/latlong.dart";
-import 'package:image_cropper/image_cropper.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:uni_pool/utilities.dart';
+import 'package:uni_pool/widgets.dart';
 
 class DriverPage extends StatefulWidget {
   const DriverPage({super.key});
@@ -33,9 +32,8 @@ class DriverPage extends StatefulWidget {
   State<DriverPage> createState() => _DriverPageState();
 }
 
-enum PopUpOptions { settings, signout }
-
-class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
+class _DriverPageState extends State<DriverPage>
+    with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> passengers = [];
   final Stream _getPassengersStream =
       Stream.periodic(const Duration(seconds: 2), (int count) {});
@@ -55,128 +53,86 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
   bool showArrived = false;
   bool followDriver = true;
   Timer? arrivedTimer;
-  Timer? refusedTimer;
+  Timer? refusedCooldownTimer;
   Position? coordinates;
-  Timer? timer;
+  Timer? passengerAcceptTimer;
 
-  String _convertCharacter(String c) {
-    switch (c) {
-      case 'Α':
-        return 'A';
-      case 'Β':
-        return 'B';
-      case 'Ε':
-        return 'E';
-      case 'Ζ':
-        return 'Z';
-      case 'Η':
-        return 'H';
-      case 'Ι':
-        return 'I';
-      case 'Κ':
-        return 'K';
-      case 'Μ':
-        return 'M';
-      case 'Ν':
-        return 'N';
-      case 'Ο':
-        return 'O';
-      case 'Ρ':
-        return 'P';
-      case 'Τ':
-        return 'T';
-      case 'Υ':
-        return 'Y';
-      case 'Χ':
-        return 'X';
-      default:
-        return c;
-    }
-  }
-
-  String _normalizeLicensePlate(String text) {
-    var normalized =
-        text.toUpperCase().characters.map(_convertCharacter).toList();
-    switch (normalized[3]) {
-      case '-':
-        break;
-      case ' ':
-        normalized[3] = '-';
-        break;
-      default:
-        normalized.insert(3, '-');
-        break;
-    }
-    return normalized.join();
-  }
-
-  void socketDriverHandler(message) {
+  void socketDriverHandler(String message) {
     final decoded = jsonDecode(message);
-    final type = decoded['type'];
+    if (decoded['type'] == null ||
+        decoded['type'] is! String ||
+        decoded['data'] == null) {
+      debugPrint("Received bad json: $message");
+      return;
+    }
+    final type = decoded['type'] as String;
     final data = decoded['data'];
     debugPrint("received $type : $data");
-    if (type == typeNewDriver) {
-      if (_getPassengersStreamSubscription.isPaused) {
-        _getPassengersStreamSubscription.resume();
-      }
-    }
-    if (type == typeGetPassengers) {
-      if (!driving || waitingForPassengers) return;
-      if (!_getPassengersStreamSubscription.isPaused) {
-        _getPassengersStreamSubscription.pause();
-      }
-      HapticFeedback.heavyImpact();
-      requestTimeout = false;
-      passengersCancelled = false;
-      _acceptPassengers();
-    }
-    if (type == typeUpdatePassenger) {
-      if (!driving || !waitingForPassengers) return;
-      if (timer != null) {
-        timer!.cancel();
-      }
-      if (data['cancelled'] != null) {
-        debugPrint("${data['cancelled']}");
-        debugPrint("$passengers");
-        passengers.removeWhere((element) => element['id'] == data['cancelled']);
-        debugPrint("$passengers");
-        if (passengers.isEmpty) {
-          debugPrint("DELETED");
-          passengersCancelled = true;
-          waitingForPassengers = false;
-          arrivedAtBusStop = false;
-          if (_getPassengersStreamSubscription.isPaused) {
-            _getPassengersStreamSubscription.resume();
+    switch (type) {
+      case typeNewDriver:
+        if (_getPassengersStreamSubscription.isPaused) {
+          _getPassengersStreamSubscription.resume();
+        }
+        break;
+      case typeGetPassengers:
+        if (!driving || waitingForPassengers) return;
+        if (!_getPassengersStreamSubscription.isPaused) {
+          _getPassengersStreamSubscription.pause();
+        }
+        HapticFeedback.heavyImpact();
+        requestTimeout = false;
+        passengersCancelled = false;
+        _acceptPassengers();
+        break;
+      case typeUpdatePassenger:
+        if (!driving || !waitingForPassengers) return;
+        if (passengerAcceptTimer != null) {
+          passengerAcceptTimer!.cancel();
+        }
+        if (data['cancelled'] != null) {
+          debugPrint("${data['cancelled']}");
+          debugPrint("$passengers");
+          passengers
+              .removeWhere((element) => element['id'] == data['cancelled']);
+          debugPrint("$passengers");
+          if (passengers.isEmpty) {
+            debugPrint("DELETED");
+            passengersCancelled = true;
+            waitingForPassengers = false;
+            arrivedAtBusStop = false;
+            if (_getPassengersStreamSubscription.isPaused) {
+              _getPassengersStreamSubscription.resume();
+            }
+          }
+        } else {
+          final index =
+              passengers.indexWhere((element) => element['id'] == data['id']);
+          if (index == -1) {
+            passengers.add(data);
+          } else {
+            passengers[index] = data;
           }
         }
-      } else {
-        final index =
-            passengers.indexWhere((element) => element['id'] == data['id']);
-        if (index == -1) {
-          passengers.add(data);
+        break;
+      case typeAddCar:
+        Provider.of<User>(context, listen: false).cars['${data['car_id']}'] =
+            data;
+        break;
+      case typeRemoveCar:
+        Provider.of<User>(context, listen: false).cars.remove(data);
+        if (Provider.of<User>(context, listen: false).cars.isEmpty) {
+          selectedCar = null;
         } else {
-          passengers[index] = data;
+          selectedCar = Provider.of<User>(context, listen: false).cars[
+              Provider.of<User>(context, listen: false)
+                  .cars
+                  .keys
+                  .toList()[0]]!['car_id'];
         }
-      }
-    }
-    if (type == typeAddCar) {
-      Provider.of<UserProvider>(context, listen: false)
-          .user
-          .cars['${data['car_id']}'] = data;
-    }
-    if (type == typeRemoveCar) {
-      Provider.of<UserProvider>(context, listen: false).user.cars.remove(data);
-      if (Provider.of<UserProvider>(context, listen: false).user.cars.isEmpty) {
-        selectedCar = null;
-      } else {
-        selectedCar =
-            Provider.of<UserProvider>(context, listen: false).user.cars[
-                Provider.of<UserProvider>(context, listen: false)
-                    .user
-                    .cars
-                    .keys
-                    .toList()[0]]!['car_id'];
-      }
+        break;
+      default:
+        debugPrint("Invalid type: $type");
+        break;
     }
     setState(() {});
   }
@@ -198,9 +154,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
       SocketConnection.channel.add(jsonEncode({
         'type': typeNewDriver,
         'data': {
-          'car': Provider.of<UserProvider>(context, listen: false)
-              .user
-              .cars[selectedCar],
+          'car': Provider.of<User>(context, listen: false).cars[selectedCar],
           'coords': {
             "latitude": coordinates!.latitude,
             "longitude": coordinates!.longitude
@@ -273,7 +227,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
       waitingForPassengers = true;
       SocketConnection.channel
           .add(jsonEncode({'type': typePingPassengers, 'data': {}}));
-      timer = Timer(const Duration(seconds: 20), () {
+      passengerAcceptTimer = Timer(const Duration(seconds: 20), () {
         requestTimeout = true;
         waitingForPassengers = false;
         arrivedAtBusStop = false;
@@ -283,7 +237,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
       if (!_getPassengersStreamSubscription.isPaused) {
         _getPassengersStreamSubscription.pause();
       }
-      refusedTimer = Timer(const Duration(seconds: 60), () {
+      refusedCooldownTimer = Timer(const Duration(seconds: 60), () {
         if (_getPassengersStreamSubscription.isPaused) {
           _getPassengersStreamSubscription.resume();
         }
@@ -621,7 +575,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
   }
 
   Widget _createCarList() {
-    final user = Provider.of<UserProvider>(context).user;
+    final user = Provider.of<User>(context);
     final cars = user.cars;
     final keys = cars.keys.toList();
     return Container(
@@ -696,25 +650,6 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
     );
   }
 
-  Future<String?> _pickCarImage() async {
-    try {
-      final selection = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 75,
-          requestFullMetadata: false);
-      if (selection == null) return null;
-      CroppedFile? cropped = await ImageCropper().cropImage(
-          sourcePath: selection.path,
-          aspectRatioPresets: [CropAspectRatioPreset.square],
-          uiSettings: [AndroidUiSettings()]);
-      if (cropped == null) return null;
-      return cropped.path;
-    } on PlatformException catch (e) {
-      debugPrint("Error: $e");
-      return null;
-    }
-  }
-
   Future<String?> _uploadCarImage(
       String path, String? previousImage, String? carId) async {
     if (previousImage != null && carId != null) {
@@ -734,29 +669,11 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
     return null;
   }
 
-  Future<String?> _uploadUserImage(String path, String? previousImage) async {
-    if (previousImage != null) {
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeDeletePicture,
-        'data': {'picture': previousImage}
-      }));
-    }
-    var request = http.MultipartRequest(
-        'POST', Uri.parse('http://$mediaHost/media/images/users'));
-    request.files.add(await http.MultipartFile.fromPath('file', path,
-        contentType: MediaType('image', 'png')));
-    final response = await http.Response.fromStream(await request.send());
-    if (response.statusCode == 200) {
-      return response.body;
-    }
-    return null;
-  }
-
   Future<Map<String, dynamic>?> _createCar({int? id}) async {
     ValueNotifier<String?> imagePath = ValueNotifier(null);
     ValueNotifier<Color?> finalColor = ValueNotifier(null);
     final car = id != null
-        ? Provider.of<UserProvider>(context, listen: false).user.cars['$id']
+        ? Provider.of<User>(context, listen: false).cars['$id']
         : null;
     if (car != null && car['color'] != null) {
       finalColor.value = Color(int.parse(car['color']));
@@ -1059,7 +976,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
                                               final modelName =
                                                   _modelNameController.text;
                                               final licensePlate =
-                                                  _normalizeLicensePlate(
+                                                  normalizeLicensePlate(
                                                       _licensePlateController
                                                           .text);
                                               if (!mounted) return;
@@ -1093,8 +1010,8 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
               ),
               IconButton(
                 onPressed: () async {
-                  imagePath.value = await _pickCarImage();
-                  if (imagePath.value == null) return;
+                  final result = await pickImage(imageQuality: carImageQuality);
+                  if (result == null || result.mimeType == null) return;
                   finalColor.value = (await PaletteGenerator.fromImageProvider(
                           Image.file(File(imagePath.value!)).image))
                       .dominantColor
@@ -1111,36 +1028,8 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
                             if (value != null) {
                               return Image.file(File(value));
                             }
-                            if (car != null && car['picture'] != null) {
-                              return CachedNetworkImage(
-                                imageUrl:
-                                    'http://$mediaHost/media/images/cars/${car['picture']}',
-                                placeholder: (context, url) {
-                                  return const CircularProgressIndicator();
-                                },
-                              );
-                            }
-                            return Stack(
-                                alignment: AlignmentDirectional.center,
-                                children: [
-                                  Container(
-                                      height: 160,
-                                      width: 160,
-                                      color: Colors.grey.shade50,
-                                      child: Icon(
-                                        Icons.add_photo_alternate,
-                                        color: Colors.grey.shade600,
-                                        size: 50,
-                                      )),
-                                  Positioned(
-                                      bottom: 24,
-                                      child: Text(
-                                        'Add car photo',
-                                        style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 15),
-                                      ))
-                                ]);
+                            return NetworkImageWithPlaceholder(
+                                imageUrl: car?['picture']);
                           })),
                 ),
               ),
@@ -1156,7 +1045,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
   Widget _buildDriverScreen() {
     var children = <Widget>[];
     if (!driving) {
-      if (Provider.of<UserProvider>(context).user.cars.isEmpty) {
+      if (Provider.of<User>(context).cars.isEmpty) {
         children = [
           const SizedBox(
             height: 100,
@@ -1190,7 +1079,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
       children.add(Padding(
         padding: const EdgeInsets.all(8.0),
         child: ElevatedButton(
-          onPressed: Provider.of<UserProvider>(context).user.cars.length >= 3
+          onPressed: Provider.of<User>(context).cars.length >= 3
               ? null
               : () async {
                   final car = await _createCar();
@@ -1232,204 +1121,6 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
     );
   }
 
-  Future<String?> _pickUserImage() async {
-    try {
-      final selection = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 75,
-          requestFullMetadata: false);
-      if (selection == null) return null;
-      CroppedFile? cropped = await ImageCropper().cropImage(
-          sourcePath: selection.path,
-          aspectRatioPresets: [CropAspectRatioPreset.square],
-          uiSettings: [AndroidUiSettings()]);
-      if (cropped == null) return null;
-      return cropped.path;
-    } on PlatformException catch (e) {
-      debugPrint("Error: $e");
-      return null;
-    }
-  }
-
-  Future _showProfile() async {
-    ValueNotifier<String?> imagePath = ValueNotifier(
-        Provider.of<UserProvider>(context, listen: false).user.picture);
-    final user = Provider.of<UserProvider>(context, listen: false).user;
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return Center(
-          child: Stack(
-            alignment: const FractionalOffset(0.5, 0),
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    color: Colors.transparent,
-                    height: 80,
-                    width: 160,
-                  ),
-                  Container(
-                    width: min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
-                    clipBehavior: Clip.hardEdge,
-                    decoration:
-                        BoxDecoration(borderRadius: BorderRadius.circular(24)),
-                    child: Material(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            const Padding(
-                                padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
-                            Text(
-                              user.name,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 2.0)),
-                            Text(
-                              user.id,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8.0)),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                RatingBarIndicator(
-                                  itemSize: 36.0,
-                                  rating: user.ratingsSum / user.ratingsCount,
-                                  itemBuilder: (context, index) => const Icon(
-                                    Icons.star_rounded,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                                const Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 4.0)),
-                                Text("(${user.ratingsCount})"),
-                              ],
-                            ),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 5.0)),
-                            TextButton(
-                                onPressed: () async {
-                                  bool? reply = await showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          title: const Text('Really sign out?'),
-                                          actions: [
-                                            TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context, true);
-                                                },
-                                                child: const Text('Yes')),
-                                            TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context, false);
-                                                },
-                                                child: const Text('No'))
-                                          ],
-                                        );
-                                      });
-                                  reply = reply ?? false;
-                                  if (!mounted) return;
-                                  if (reply) {
-                                    SecureStorage.deleteAllSecure();
-                                    SocketConnection.channel.add(jsonEncode(
-                                        {'type': typeSignout, 'data': {}}));
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const WelcomePage()),
-                                    );
-                                  }
-                                },
-                                child: const Text(
-                                  "Sign out",
-                                  style: TextStyle(fontSize: 16.0),
-                                )),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 2.0)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              IconButton(
-                onPressed: () async {
-                  final newImage = await _pickUserImage();
-                  if (newImage != null) {
-                    imagePath.value =
-                        await _uploadUserImage(newImage, imagePath.value);
-                    if (!mounted) return;
-                    SocketConnection.channel.add(jsonEncode({
-                      'type': typeUpdateUserPicture,
-                      'data': imagePath.value
-                    }));
-                    Provider.of<UserProvider>(context, listen: false)
-                        .user
-                        .picture = imagePath.value;
-                    setState(() {});
-                  }
-                },
-                iconSize: 40,
-                icon: CircleAvatar(
-                  radius: 70,
-                  child: ClipRRect(
-                      borderRadius: BorderRadius.circular(70),
-                      child: ValueListenableBuilder(
-                          valueListenable: imagePath,
-                          builder: (context, value, child) {
-                            if (value != null) {
-                              return CachedNetworkImage(
-                                imageUrl:
-                                    'http://$mediaHost/media/images/users/$value',
-                                placeholder: (context, url) {
-                                  return const CircularProgressIndicator();
-                                },
-                              );
-                            }
-                            return Stack(
-                                alignment: AlignmentDirectional.center,
-                                children: [
-                                  Container(
-                                      height: 160,
-                                      width: 160,
-                                      color: Colors.grey.shade50,
-                                      child: Icon(
-                                        Icons.add_photo_alternate,
-                                        color: Colors.grey.shade600,
-                                        size: 50,
-                                      )),
-                                  Positioned(
-                                      bottom: 24,
-                                      child: Text(
-                                        'Add photo',
-                                        style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 15),
-                                      ))
-                                ]);
-                          })),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildFAB() {
     return FloatingActionButton.large(
         heroTag: 'FAB1',
@@ -1444,11 +1135,11 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
                   if (!positionStream.isPaused) {
                     positionStream.pause();
                   }
-                  if (timer != null) {
-                    timer!.cancel();
+                  if (passengerAcceptTimer != null) {
+                    passengerAcceptTimer!.cancel();
                   }
-                  if (refusedTimer != null) {
-                    refusedTimer!.cancel();
+                  if (refusedCooldownTimer != null) {
+                    refusedCooldownTimer!.cancel();
                   }
                   driving = false;
                   inRadius = false;
@@ -1699,11 +1390,11 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
     _modelNameController.dispose();
     _licensePlateController.dispose();
     mapController.dispose();
-    if (timer != null) {
-      timer!.cancel();
+    if (passengerAcceptTimer != null) {
+      passengerAcceptTimer!.cancel();
     }
-    if (refusedTimer != null) {
-      refusedTimer!.cancel();
+    if (refusedCooldownTimer != null) {
+      refusedCooldownTimer!.cancel();
     }
     super.dispose();
   }
@@ -1750,33 +1441,7 @@ class _DriverPageState extends State<DriverPage> with TickerProviderStateMixin {
               icon: const Icon(Icons.directions_walk),
               tooltip: 'Switch to passenger mode',
             ),
-            IconButton(
-                onPressed: _showProfile,
-                icon: Provider.of<UserProvider>(context, listen: false)
-                            .user
-                            .picture !=
-                        null
-                    ? CachedNetworkImage(
-                        imageUrl:
-                            "http://$mediaHost/media/images/users/${Provider.of<UserProvider>(context, listen: false).user.picture}",
-                        imageBuilder: (context, imageProvider) => CircleAvatar(
-                          radius: 18.0,
-                          backgroundImage: imageProvider,
-                        ),
-                        placeholder: (context, url) =>
-                            const CircularProgressIndicator(),
-                        errorWidget: (context, url, error) =>
-                            const CircleAvatar(
-                          radius: 18.0,
-                          backgroundImage:
-                              AssetImage("assets/images/blank_profile.png"),
-                        ),
-                      )
-                    : const CircleAvatar(
-                        radius: 18.0,
-                        backgroundImage:
-                            AssetImage('assets/images/blank_profile.png'),
-                      )),
+            const UserImageButton(),
             const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
           ]),
       body: _buildDriverScreen(),

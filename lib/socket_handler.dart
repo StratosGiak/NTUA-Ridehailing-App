@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:uni_pool/constants.dart';
 
 class SocketConnection {
-  static final receiveController = StreamController();
+  static final receiveController = StreamController<String>();
   static final receiveSubscription =
       receiveController.stream.listen((event) {});
   static final connectionController = StreamController();
