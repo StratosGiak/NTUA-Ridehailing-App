@@ -38,6 +38,7 @@ class User with ChangeNotifier {
     } else {
       id = 'INVALID';
       name = '';
+      picture = null;
       ratingsSum = 0;
       ratingsCount = 0;
       cars = {};

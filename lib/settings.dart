@@ -1,19 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-List<Color> colors = [
-  Colors.blue,
-  Colors.orange,
-  Colors.yellow,
-  Colors.green,
-  Colors.red,
-  Colors.lightGreen,
-  Colors.indigo,
-  Colors.pink,
-  Colors.teal,
-  Colors.cyan
-];
-
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
   static const name = "Settings";

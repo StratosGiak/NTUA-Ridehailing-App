@@ -1,11 +1,10 @@
-import 'dart:async';
-
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-const apiHost = "192.168.1.119:16820";
-const mediaHost = "192.168.1.119:28563";
+const apiHost = "ntua-ridehailing.dslab.ece.ntua.gr/api";
+const mediaHost = "ntua-ridehailing.dslab.ece.ntua.gr/media";
 String mapUrl = "";
-StreamController<String> wsStreamController = StreamController.broadcast();
 
 enum TypeOfUser { driver, passenger }
 
@@ -13,11 +12,35 @@ enum TypeOfImage { users, cars }
 
 const busStop = LatLng(37.9923, 23.7764);
 const university = LatLng(37.978639, 23.782778);
+final mapBounds = LatLngBounds(
+    const LatLng(38.01304, 23.74121), const LatLng(37.97043, 23.80078));
+
+const busStopRange = 100;
+const maxSeperation = 500;
+const arrivalRange = 100;
+const distanceFilter = 20;
 
 const userImageQuality = 75;
 const carImageQuality = 75;
 
 const connectionTimeout = 5;
+const pairingRequestTimeout = 20;
+
+final licensePlateRegex =
+    RegExp(r'^[AΑBΒEΕZΖHΗIΙKΚMΜNΝOΟPΡTΤYΥXΧ]{3}[- ]?[1-9]\d{3}$');
+
+const List<Color> colors = [
+  Colors.blue,
+  Colors.orange,
+  Colors.yellow,
+  Colors.green,
+  Colors.red,
+  Colors.lightGreen,
+  Colors.indigo,
+  Colors.pink,
+  Colors.teal,
+  Colors.cyan
+];
 
 const typeLogin = "!LOGIN";
 const typeUpdateDriver = "!UPDATEDRIVER";

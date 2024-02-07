@@ -5,21 +5,27 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:provider/provider.dart';
+import 'package:uni_pool/driver.dart';
+import 'package:uni_pool/passenger.dart';
 import 'package:uni_pool/providers.dart';
+import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/utilities.dart';
+import 'package:uni_pool/welcome.dart';
 import 'constants.dart';
 import 'package:uni_pool/socket_handler.dart';
 
 class NetworkImageWithPlaceholder extends StatelessWidget {
-  const NetworkImageWithPlaceholder({super.key, this.imageUrl});
+  const NetworkImageWithPlaceholder(
+      {super.key, required this.typeOfImage, this.imageUrl});
 
   final String? imageUrl;
+  final TypeOfImage typeOfImage;
 
   @override
   Widget build(context) {
     if (imageUrl != null) {
       return CachedNetworkImage(
-        imageUrl: 'http://$mediaHost/media/images/users/$imageUrl',
+        imageUrl: 'http://$mediaHost/images/${typeOfImage.name}/$imageUrl',
         placeholder: (_, __) {
           return const CircularProgressIndicator();
         },
@@ -79,51 +85,53 @@ class UserProfileInfo extends StatelessWidget {
               const Padding(padding: EdgeInsets.symmetric(vertical: 8.0)),
               RatingBarIndicator(
                 itemSize: 36.0,
-                rating: user.ratingsSum / user.ratingsCount,
+                rating: user.ratingsCount != 0
+                    ? user.ratingsSum / user.ratingsCount
+                    : 0,
                 itemBuilder: (context, index) => const Icon(
                   Icons.star_rounded,
                   color: Colors.amber,
                 ),
               ),
               const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-              // TextButton(
-              //     onPressed: () async {
-              //       bool? reply = await showDialog(
-              //           context: context,
-              //           builder: (context) {
-              //             return AlertDialog(
-              //               title: const Text('Really sign out?'),
-              //               actions: [
-              //                 TextButton(
-              //                     onPressed: () {
-              //                       Navigator.pop(context, true);
-              //                     },
-              //                     child: const Text('Yes')),
-              //                 TextButton(
-              //                     onPressed: () {
-              //                       Navigator.pop(context, false);
-              //                     },
-              //                     child: const Text('No'))
-              //               ],
-              //             );
-              //           });
-              //       reply = reply ?? false;
-              //       if (!mounted) return;
-              //       if (reply) {
-              //         SecureStorage.deleteAllSecure();
-              //         SocketConnection.channel
-              //             .add(jsonEncode({'type': typeSignout, 'data': {}}));
-              //         Navigator.pushReplacement(
-              //           context,
-              //           MaterialPageRoute(
-              //               builder: (context) => const WelcomePage()),
-              //         );
-              //       }
-              //     },
-              //     child: const Text(
-              //       "Sign out",
-              //       style: TextStyle(fontSize: 16.0),
-              //     )),
+              TextButton(
+                  onPressed: () async {
+                    bool? reply = await showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Really sign out?'),
+                            actions: [
+                              TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, true);
+                                  },
+                                  child: const Text('Yes')),
+                              TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(context, false);
+                                  },
+                                  child: const Text('No'))
+                            ],
+                          );
+                        });
+                    reply = reply ?? false;
+                    if (!context.mounted) return;
+                    if (reply) {
+                      SecureStorage.deleteAllSecure();
+                      SocketConnection.channel
+                          .add(jsonEncode({'type': typeSignout, 'data': {}}));
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const WelcomePage()),
+                      );
+                    }
+                  },
+                  child: const Text(
+                    "Sign out",
+                    style: TextStyle(fontSize: 16.0),
+                  )),
               const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
             ],
           );
@@ -171,7 +179,7 @@ class UserProfileCard extends StatelessWidget {
               final result = await pickImage(imageQuality: userImageQuality);
               if (result == null || result.mimeType == null) return;
               final newImage = await uploadImage(
-                  TypeOfImage.users, result.pickedImage, result.mimeType!);
+                  TypeOfImage.users, result.imagePath!, result.mimeType!);
               if (newImage == null) return;
               if (!context.mounted) return;
               context.read<User>().setUserPicture(newImage);
@@ -185,13 +193,44 @@ class UserProfileCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(70),
                     child: Selector<User, String?>(
                       selector: (_, user) => user.picture,
-                      builder: (_, value, __) =>
-                          NetworkImageWithPlaceholder(imageUrl: value),
+                      builder: (_, value, __) => NetworkImageWithPlaceholder(
+                        imageUrl: value,
+                        typeOfImage: TypeOfImage.users,
+                      ),
                     ))),
           ),
         ],
       ),
     );
+  }
+}
+
+class UserAvatar extends StatelessWidget {
+  const UserAvatar({super.key, required this.url, this.size = 22.0});
+  final String? url;
+  final double size;
+
+  @override
+  Widget build(context) {
+    return url != null
+        ? CachedNetworkImage(
+            imageUrl: "http://$mediaHost/images/users/$url",
+            imageBuilder: (context, imageProvider) => CircleAvatar(
+              radius: size,
+              backgroundImage: imageProvider,
+            ),
+            placeholder: (context, url) => const CircularProgressIndicator(),
+            errorWidget: (context, url, error) => CircleAvatar(
+              radius: size,
+              backgroundImage:
+                  const AssetImage("assets/images/blank_profile.png"),
+            ),
+          )
+        : CircleAvatar(
+            radius: size,
+            backgroundImage:
+                const AssetImage('assets/images/blank_profile.png'),
+          );
   }
 }
 
@@ -208,26 +247,10 @@ class UserImageButton extends StatelessWidget {
         onPressed: enablePress
             ? () => showProfile(context: context, showSignout: showSignout)
             : null,
-        icon: context.watch<User>().picture != null
-            ? CachedNetworkImage(
-                imageUrl:
-                    "http://$mediaHost/media/images/users/${context.watch<User>().picture}",
-                imageBuilder: (context, imageProvider) => CircleAvatar(
-                  radius: 22.0,
-                  backgroundImage: imageProvider,
-                ),
-                placeholder: (context, url) =>
-                    const CircularProgressIndicator(),
-                errorWidget: (context, url, error) => const CircleAvatar(
-                  radius: 22.0,
-                  backgroundImage:
-                      AssetImage("assets/images/blank_profile.png"),
-                ),
-              )
-            : const CircleAvatar(
-                radius: 22.0,
-                backgroundImage: AssetImage('assets/images/blank_profile.png'),
-              ));
+        icon: Selector<User, String?>(
+          builder: (_, value, __) => UserAvatar(url: value),
+          selector: (_, user) => user.picture,
+        ));
   }
 }
 
@@ -256,6 +279,51 @@ class SubtitledButton extends StatelessWidget {
         const Padding(padding: EdgeInsets.all(5)),
         subtitle
       ],
+    );
+  }
+}
+
+class SwitchUserButton extends StatelessWidget {
+  const SwitchUserButton(
+      {super.key,
+      required this.context,
+      required this.skip,
+      required this.typeOfUser,
+      this.back = false});
+
+  final BuildContext context;
+  final bool skip;
+  final TypeOfUser typeOfUser;
+  final bool back;
+
+  @override
+  Widget build(context) {
+    return IconButton(
+      onPressed: () async {
+        if (await stopDialog(context, skip, typeOfUser) && context.mounted) {
+          SocketConnection.channel.add(jsonEncode({
+            'type': typeOfUser == TypeOfUser.driver
+                ? typeStopDriver
+                : typeStopPassenger,
+            'data': {}
+          }));
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => (typeOfUser == TypeOfUser.driver) ^ back
+                    ? const DriverPage()
+                    : const PassengerPage()),
+          );
+        }
+      },
+      iconSize: 26.0,
+      icon: back
+          ? const Icon(Icons.arrow_back)
+          : typeOfUser == TypeOfUser.driver
+              ? const Icon(Icons.directions_walk)
+              : const Icon(Icons.directions_car),
+      tooltip:
+          'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode',
     );
   }
 }

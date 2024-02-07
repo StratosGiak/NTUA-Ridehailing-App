@@ -44,12 +44,13 @@ class SocketConnection {
 
   static Future<WebSocket?> connect() async {
     try {
-      return await WebSocket.connect("ws://$apiHost/api");
+      return await WebSocket.connect("ws://$apiHost")
+          .timeout(const Duration(seconds: 5));
     } catch (error) {
-      if (tries > 4) {
+      ++tries;
+      if (tries > 2) {
         return null;
       }
-      ++tries;
       debugPrint("CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries");
       await Future.delayed(const Duration(seconds: 2));
       return await connect();

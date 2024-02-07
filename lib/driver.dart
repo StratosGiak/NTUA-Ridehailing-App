@@ -12,16 +12,12 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:provider/provider.dart';
 import 'package:uni_pool/constants.dart';
-import 'package:uni_pool/main.dart';
-import 'package:uni_pool/passenger.dart';
+import 'package:uni_pool/welcome.dart';
 import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/settings.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:flutter_map/flutter_map.dart';
 import "package:latlong2/latlong.dart";
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:uni_pool/utilities.dart';
 import 'package:uni_pool/widgets.dart';
 
@@ -227,7 +223,8 @@ class _DriverPageState extends State<DriverPage>
       waitingForPassengers = true;
       SocketConnection.channel
           .add(jsonEncode({'type': typePingPassengers, 'data': {}}));
-      passengerAcceptTimer = Timer(const Duration(seconds: 20), () {
+      passengerAcceptTimer =
+          Timer(const Duration(seconds: pairingRequestTimeout), () {
         requestTimeout = true;
         waitingForPassengers = false;
         arrivedAtBusStop = false;
@@ -273,36 +270,6 @@ class _DriverPageState extends State<DriverPage>
     return markers;
   }
 
-  void _moveCamera(MapController mapController, LatLng dest, double zoom) {
-    final camera = mapController.camera;
-    final latTween =
-        Tween<double>(begin: camera.center.latitude, end: dest.latitude);
-    final lngTween =
-        Tween<double>(begin: camera.center.longitude, end: dest.longitude);
-    final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
-    final controller = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
-    final Animation<double> animation =
-        CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
-    controller.addListener(() {
-      if (!waitingForPassengers) {
-        controller.dispose();
-        return;
-      }
-      mapController.move(
-          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
-          zoomTween.evaluate(animation));
-    });
-    animation.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        controller.dispose();
-      } else if (status == AnimationStatus.dismissed) {
-        controller.dispose();
-      }
-    });
-    controller.forward();
-  }
-
   Widget _buildMap() {
     if (mapUrl.isEmpty) return Container();
     return FlutterMap(
@@ -312,9 +279,7 @@ class _DriverPageState extends State<DriverPage>
         initialZoom: 14.5,
         minZoom: 14,
         maxZoom: 16,
-        cameraConstraint: CameraConstraint.contain(
-            bounds: LatLngBounds(const LatLng(38.01304, 23.74121),
-                const LatLng(37.97043, 23.80078))),
+        cameraConstraint: CameraConstraint.contain(bounds: mapBounds),
         interactionOptions: const InteractionOptions(
             flags: InteractiveFlag.all - InteractiveFlag.rotate),
         onPositionChanged: (position, hasGesture) {
@@ -359,7 +324,8 @@ class _DriverPageState extends State<DriverPage>
                     ? () {
                         followDriver = true;
                         setState(() {});
-                        _moveCamera(
+                        moveCamera(
+                            this,
                             mapController,
                             LatLng(
                                 coordinates!.latitude, coordinates!.longitude),
@@ -415,7 +381,7 @@ class _DriverPageState extends State<DriverPage>
                     child: FittedBox(
                       child: CachedNetworkImage(
                         imageUrl:
-                            'http://$mediaHost/media/images/users/${passengers[index]['picture']}',
+                            'http://$mediaHost/images/users/${passengers[index]['picture']}',
                         placeholder: (context, url) =>
                             const CircularProgressIndicator(),
                         errorWidget: (context, url, error) =>
@@ -458,7 +424,8 @@ class _DriverPageState extends State<DriverPage>
                   itemBuilder: (context, index) {
                     return ListTile(
                         onTap: () {
-                          _moveCamera(
+                          moveCamera(
+                              this,
                               mapController,
                               LatLng(passengers[index]["coords"]["latitude"],
                                   passengers[index]["coords"]["longitude"]),
@@ -476,7 +443,7 @@ class _DriverPageState extends State<DriverPage>
                               child: passengers[index]['picture'] != null
                                   ? CachedNetworkImage(
                                       imageUrl:
-                                          "http://$mediaHost/media/images/users/${passengers[index]['picture']}",
+                                          "http://$mediaHost/images/users/${passengers[index]['picture']}",
                                       imageBuilder: (context, imageProvider) =>
                                           CircleAvatar(
                                         radius: 25.0,
@@ -650,27 +617,9 @@ class _DriverPageState extends State<DriverPage>
     );
   }
 
-  Future<String?> _uploadCarImage(
-      String path, String? previousImage, String? carId) async {
-    if (previousImage != null && carId != null) {
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeDeletePicture,
-        'data': {'car_id': carId, 'picture': previousImage}
-      }));
-    }
-    var request = http.MultipartRequest(
-        'POST', Uri.parse('http://$mediaHost/media/images/cars'));
-    request.files.add(await http.MultipartFile.fromPath('file', path,
-        contentType: MediaType('image', 'png')));
-    final response = await http.Response.fromStream(await request.send());
-    if (response.statusCode == 200) {
-      return response.body;
-    }
-    return null;
-  }
-
   Future<Map<String, dynamic>?> _createCar({int? id}) async {
-    ValueNotifier<String?> imagePath = ValueNotifier(null);
+    ValueNotifier<({String? imagePath, String? mimeType})> selectedImage =
+        ValueNotifier((imagePath: null, mimeType: null));
     ValueNotifier<Color?> finalColor = ValueNotifier(null);
     final car = id != null
         ? Provider.of<User>(context, listen: false).cars['$id']
@@ -681,7 +630,7 @@ class _DriverPageState extends State<DriverPage>
     List<String> suggestions =
         (await DefaultAssetBundle.of(context).loadString('assets/cars.txt'))
             .split('\n');
-    if (!mounted) return Future(() => null);
+    if (!mounted) return null;
     return showDialog<Map<String, dynamic>>(
         context: context,
         builder: (context) {
@@ -769,7 +718,7 @@ class _DriverPageState extends State<DriverPage>
                                       decoration: const InputDecoration(
                                           hintText: "License plate"),
                                       validator: (value) => value == null ||
-                                              !RegExp(r'^[AΑBΒEΕZΖHΗIΙKΚMΜNΝOΟPΡTΤYΥXΧ]{3}[- ]?[1-9]\d{3}$')
+                                              !licensePlateRegex
                                                   .hasMatch(value.toUpperCase())
                                           ? "Please enter a valid license plate number"
                                           : null),
@@ -788,9 +737,7 @@ class _DriverPageState extends State<DriverPage>
                                     builder: (context, value, child) {
                                       return IconButton(
                                         onPressed: value > 1
-                                            ? () {
-                                                --seats.value;
-                                              }
+                                            ? () => --seats.value
                                             : null,
                                         icon: const Icon(Icons.remove),
                                         iconSize: 30,
@@ -815,9 +762,7 @@ class _DriverPageState extends State<DriverPage>
                                     builder: (context, value, child) {
                                       return IconButton(
                                         onPressed: value < 3
-                                            ? () {
-                                                ++seats.value;
-                                              }
+                                            ? () => ++seats.value
                                             : null,
                                         icon: const Icon(Icons.add),
                                         iconSize: 30,
@@ -893,11 +838,10 @@ class _DriverPageState extends State<DriverPage>
                                                         builder: (context,
                                                             value, child) {
                                                           return TextButton(
-                                                              onPressed: () {
-                                                                Navigator.pop(
-                                                                    context,
-                                                                    value);
-                                                              },
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                      context,
+                                                                      value),
                                                               child: const Text(
                                                                   "Select"));
                                                         }),
@@ -907,10 +851,9 @@ class _DriverPageState extends State<DriverPage>
                                                                 horizontal:
                                                                     8.0)),
                                                     TextButton(
-                                                        onPressed: () {
-                                                          Navigator.pop(
-                                                              context, null);
-                                                        },
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                context, null),
                                                         child: const Text(
                                                             "Cancel"))
                                                   ],
@@ -945,9 +888,8 @@ class _DriverPageState extends State<DriverPage>
                                       return Visibility(
                                         visible: value != null,
                                         child: IconButton(
-                                            onPressed: () {
-                                              finalColor.value = null;
-                                            },
+                                            onPressed: () =>
+                                                finalColor.value = null,
                                             icon: const Icon(Icons.clear)),
                                       );
                                     })
@@ -958,20 +900,20 @@ class _DriverPageState extends State<DriverPage>
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 ValueListenableBuilder(
-                                    valueListenable: imagePath,
+                                    valueListenable: selectedImage,
                                     builder: (context, value, child) {
                                       return TextButton(
                                           onPressed: () async {
                                             if (formKey.currentState!
                                                 .validate()) {
                                               String? imageName;
-                                              if (value != null) {
-                                                debugPrint("$car");
-                                                imageName =
-                                                    await _uploadCarImage(
-                                                        value,
-                                                        car?['picture'],
-                                                        id?.toString());
+
+                                              if (value.imagePath != null &&
+                                                  value.mimeType != null) {
+                                                imageName = await uploadImage(
+                                                    TypeOfImage.cars,
+                                                    value.imagePath!,
+                                                    value.mimeType!);
                                               }
                                               final modelName =
                                                   _modelNameController.text;
@@ -994,9 +936,7 @@ class _DriverPageState extends State<DriverPage>
                                           child: const Text("Ok"));
                                     }),
                                 TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                    },
+                                    onPressed: () => Navigator.pop(context),
                                     child: const Text("Cancel")),
                               ],
                             ),
@@ -1012,8 +952,9 @@ class _DriverPageState extends State<DriverPage>
                 onPressed: () async {
                   final result = await pickImage(imageQuality: carImageQuality);
                   if (result == null || result.mimeType == null) return;
+                  selectedImage.value = result;
                   finalColor.value = (await PaletteGenerator.fromImageProvider(
-                          Image.file(File(imagePath.value!)).image))
+                          Image.file(File(result.imagePath!)).image))
                       .dominantColor
                       ?.color;
                 },
@@ -1023,12 +964,13 @@ class _DriverPageState extends State<DriverPage>
                   child: ClipRRect(
                       borderRadius: BorderRadius.circular(70),
                       child: ValueListenableBuilder(
-                          valueListenable: imagePath,
+                          valueListenable: selectedImage,
                           builder: (context, value, child) {
-                            if (value != null) {
-                              return Image.file(File(value));
+                            if (value.imagePath != null) {
+                              return Image.file(File(value.imagePath!));
                             }
                             return NetworkImageWithPlaceholder(
+                                typeOfImage: TypeOfImage.cars,
                                 imageUrl: car?['picture']);
                           })),
                 ),
@@ -1166,151 +1108,64 @@ class _DriverPageState extends State<DriverPage>
         ));
   }
 
-  Future<bool> _stopDriverDialog() async {
-    if (passengers.isEmpty) return Future.value(true);
-    bool? reply = await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Really switch to passenger mode?'),
-            content: const Text('The current ride will be cancelled'),
-            actions: [
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context, true);
-                  },
-                  child: const Text('Yes')),
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context, false);
-                  },
-                  child: const Text('No'))
-            ],
-          );
-        });
-    return reply ?? false;
-  }
-
-  Future _arrivedDialog() async {
-    List<ValueNotifier<double>> ratings =
-        List.generate(passengers.length, (index) => ValueNotifier(0));
-    List<Widget> ratingBars = List.generate(
-        passengers.length,
-        (index) => ValueListenableBuilder(
-            valueListenable: ratings[index],
-            builder: (context, value, child) {
-              return Row(
-                children: [
-                  RatingBar.builder(
-                      itemSize: 36,
-                      glow: false,
-                      initialRating: value,
-                      minRating: 1,
-                      itemBuilder: (context, index) => const Icon(
-                            Icons.star_rounded,
-                            color: Colors.amber,
-                          ),
-                      onRatingUpdate: (rating) {
-                        ratings[index].value = rating;
-                      }),
-                  Visibility(
-                    visible: value != 0,
-                    maintainSize: true,
-                    maintainAnimation: true,
-                    maintainState: true,
-                    child: IconButton(
-                        onPressed: () {
-                          ratings[index].value = 0;
-                        },
-                        iconSize: 30,
-                        icon: const Icon(Icons.close)),
-                  ),
-                ],
-              );
-            }));
-    await showDialog<List<double>>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return Dialog(
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Padding(padding: EdgeInsets.symmetric(vertical: 14.0)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    "You have reached your destination!",
-                    style:
-                        TextStyle(fontSize: 26.0, fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    "Please rate your experience with the passengers (optional)",
-                    style: TextStyle(fontSize: 16.0),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-                ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: passengers.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      title: Text("${passengers[index]['name']}"),
-                      leading: passengers[index]['picture'] != null
-                          ? CachedNetworkImage(
-                              imageUrl:
-                                  "http://$mediaHost/media/images/users/${passengers[index]['picture']}",
-                              imageBuilder: (context, imageProvider) =>
-                                  CircleAvatar(
-                                radius: 26.0,
-                                backgroundImage: imageProvider,
-                              ),
-                              placeholder: (context, url) =>
-                                  const CircularProgressIndicator(),
-                              errorWidget: (context, url, error) =>
-                                  const CircleAvatar(
-                                radius: 26.0,
-                                backgroundImage: AssetImage(
-                                    "assets/images/blank_profile.png"),
-                              ),
-                            )
-                          : const CircleAvatar(
-                              radius: 26.0,
-                              backgroundImage:
-                                  AssetImage("assets/images/blank_profile.png"),
-                            ),
-                      subtitle: ratingBars[index],
-                    );
-                  },
-                  separatorBuilder: (context, index) => const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6.0)),
-                ),
-                Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            "Submit",
-                            style: TextStyle(fontSize: 18.0),
-                          )),
-                    )),
-              ],
-            ),
-          );
-        });
-    return ratings.map((e) => e.value).toList();
+  void _onPositionChange(Position? position) async {
+    if (position == null) {
+      debugPrint('Unknown position');
+      return;
+    }
+    coordinates = position;
+    _sendDriver();
+    if (arrivedAtBusStop && followDriver) {
+      moveCamera(
+          this,
+          mapController,
+          LatLng(coordinates!.latitude, coordinates!.longitude),
+          mapController.camera.zoom);
+    }
+    if (passengers.isNotEmpty &&
+        Geolocator.distanceBetween(position.latitude, position.longitude,
+                busStop.latitude, busStop.longitude) <
+            100 &&
+        !arrivedAtBusStop) {
+      arrivedAtBusStop = true;
+      showArrived = true;
+      moveCamera(this, mapController, busStop, 15.5);
+      arrivedTimer = Timer(const Duration(seconds: 5), () {
+        showArrived = false;
+        setState(() {});
+      });
+    }
+    if (passengers.isNotEmpty &&
+        Geolocator.distanceBetween(position.latitude, position.longitude,
+                university.latitude, university.longitude) <
+            300 &&
+        arrivedAtBusStop &&
+        !arrivedAtUniversity) {
+      arrivedAtUniversity = true;
+      _getPassengersStreamSubscription.cancel();
+      moveCamera(this, mapController,
+          LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
+      SocketConnection.channel
+          .add(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
+      final List<double>? ratings = await arrivedDialog(
+          context: context,
+          users: passengers,
+          typeOfUser: TypeOfUser.passenger);
+      if (ratings == null) return;
+      if (!mounted) return;
+      SocketConnection.channel.add(jsonEncode({
+        'type': typeSendRatings,
+        'data': {
+          'users': passengers.map((e) => e['id']).toList(),
+          'ratings': ratings
+        }
+      }));
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomePage()),
+      );
+    }
+    setState(() {});
   }
 
   @override
@@ -1325,61 +1180,8 @@ class _DriverPageState extends State<DriverPage>
     positionStream = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 20,
-    )).listen((Position? position) async {
-      if (position == null) {
-        debugPrint('Unknown position');
-        return;
-      }
-      coordinates = position;
-      _sendDriver();
-      if (arrivedAtBusStop && followDriver) {
-        _moveCamera(
-            mapController,
-            LatLng(coordinates!.latitude, coordinates!.longitude),
-            mapController.camera.zoom);
-      }
-      if (passengers.isNotEmpty &&
-          Geolocator.distanceBetween(position.latitude, position.longitude,
-                  busStop.latitude, busStop.longitude) <
-              100 &&
-          !arrivedAtBusStop) {
-        arrivedAtBusStop = true;
-        showArrived = true;
-        _moveCamera(mapController, busStop, 15.5);
-        arrivedTimer = Timer(const Duration(seconds: 5), () {
-          showArrived = false;
-          setState(() {});
-        });
-      }
-      if (passengers.isNotEmpty &&
-          Geolocator.distanceBetween(position.latitude, position.longitude,
-                  university.latitude, university.longitude) <
-              300 &&
-          arrivedAtBusStop &&
-          !arrivedAtUniversity) {
-        arrivedAtUniversity = true;
-        _getPassengersStreamSubscription.cancel();
-        _moveCamera(mapController,
-            LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
-        SocketConnection.channel
-            .add(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
-        final List<double> ratings = await _arrivedDialog();
-        if (!mounted) return;
-        SocketConnection.channel.add(jsonEncode({
-          'type': typeSendRatings,
-          'data': {
-            'users': passengers.map((e) => e['id']).toList(),
-            'ratings': ratings
-          }
-        }));
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomePage()),
-        );
-      }
-      setState(() {});
-    });
+      distanceFilter: distanceFilter,
+    )).listen(_onPositionChange);
     positionStream.pause();
   }
 
@@ -1406,40 +1208,18 @@ class _DriverPageState extends State<DriverPage>
       appBar: AppBar(
           title: const Text('Driver'),
           leading: Visibility(
-              visible: passengers.isNotEmpty,
-              child: IconButton(
-                  onPressed: () async {
-                    if (await _stopDriverDialog() && mounted) {
-                      if (driving) {
-                        SocketConnection.channel.add(
-                            jsonEncode({'type': typeStopDriver, 'data': {}}));
-                      }
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const PassengerPage()),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.arrow_back))),
+            visible: passengers.isNotEmpty,
+            child: SwitchUserButton(
+                context: context,
+                skip: passengers.isEmpty || !inRadius,
+                typeOfUser: TypeOfUser.driver,
+                back: true),
+          ),
           actions: [
-            IconButton(
-              onPressed: () async {
-                if (await _stopDriverDialog() && mounted) {
-                  if (driving) {
-                    SocketConnection.channel
-                        .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
-                  }
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                        builder: (context) => const PassengerPage()),
-                  );
-                }
-              },
-              iconSize: 26.0,
-              icon: const Icon(Icons.directions_walk),
-              tooltip: 'Switch to passenger mode',
+            SwitchUserButton(
+              context: context,
+              skip: passengers.isEmpty || !inRadius,
+              typeOfUser: TypeOfUser.driver,
             ),
             const UserImageButton(),
             const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))

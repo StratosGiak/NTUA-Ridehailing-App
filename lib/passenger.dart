@@ -1,28 +1,20 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:uni_pool/constants.dart';
-import 'package:uni_pool/driver.dart';
-import 'package:uni_pool/main.dart';
-import 'package:uni_pool/settings.dart';
-import 'package:uni_pool/sensitive_storage.dart';
+import 'package:uni_pool/utilities.dart';
+import 'package:uni_pool/welcome.dart';
 import 'package:uni_pool/socket_handler.dart';
-import 'package:uni_pool/providers.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import "package:latlong2/latlong.dart";
+import 'package:uni_pool/widgets.dart';
 
 class PassengerPage extends StatefulWidget {
   const PassengerPage({super.key});
@@ -49,222 +41,122 @@ class _PassengerPageState extends State<PassengerPage>
 
   void socketPassengerHandler(message) async {
     final decoded = jsonDecode(message);
-    final type = decoded['type'];
+    if (decoded['type'] == null ||
+        decoded['type'] is! String ||
+        decoded['data'] == null) {
+      debugPrint("Received bad json: $message");
+      return;
+    }
+    final type = decoded['type'] as String;
     final data = decoded['data'];
     debugPrint("received $type : $data");
-    if (type == typeGetDriver) {
-      if (driver == null) return;
-      driver = data;
-      if (driver == null) {
-        HapticFeedback.heavyImpact();
-        driver = null;
-        driverArrived = false;
-        driverPositions.clear();
-        driverRefused = true;
-      } else {
-        if (driverArrived) {
-          if (Geolocator.distanceBetween(
-                  driver!['coords']['latitude'],
-                  driver!['coords']['longitude'],
-                  coordinates!.latitude,
-                  coordinates!.longitude) >
-              500) {
-            HapticFeedback.heavyImpact();
-            driver = null;
-            driverArrived = false;
-            driverPositions.clear();
-            driverRefused = true;
-            SocketConnection.channel
-                .add(jsonEncode({'type': typeOutOfRange, 'data': {}}));
-            setState(() {});
-            return;
-          }
-          if (followDriver) {
-            _moveCamera(
-                mapController,
-                LatLng(driver!['coords']['latitude'],
-                    driver!['coords']['longitude']),
-                mapController.camera.zoom);
-          }
-        }
-        if (driverPositions.length > 50) {
-          driverPositions.removeFirst();
-        }
-        final pos = LatLng(
-            driver!['coords']['latitude'], driver!['coords']['longitude']);
-        if (Geolocator.distanceBetween(pos.latitude, pos.longitude,
-                    busStop.latitude, busStop.longitude) <
-                100 &&
-            !driverArrived) {
-          _moveCamera(mapController, pos, 15.5);
-          driverArrived = true;
-          showArrived = true;
-          arrivedTimer = Timer(const Duration(seconds: 5), () {
-            showArrived = false;
-            setState(() {});
-          });
+    switch (type) {
+      case typeGetDriver:
+        if (driver == null) return;
+        driver = data;
+        if (driver == null) {
           HapticFeedback.heavyImpact();
+          driver = null;
+          driverArrived = false;
+          driverPositions.clear();
+          driverRefused = true;
+        } else {
+          if (driverArrived) {
+            final driverPassengerDistance = Geolocator.distanceBetween(
+                driver!['coords']['latitude'],
+                driver!['coords']['longitude'],
+                coordinates!.latitude,
+                coordinates!.longitude);
+            if (driverPassengerDistance > maxSeperation) {
+              HapticFeedback.heavyImpact();
+              driver = null;
+              driverArrived = false;
+              driverPositions.clear();
+              driverRefused = true;
+              SocketConnection.channel
+                  .add(jsonEncode({'type': typeOutOfRange, 'data': {}}));
+              setState(() {});
+              return;
+            }
+            if (followDriver) {
+              moveCamera(
+                  this,
+                  mapController,
+                  LatLng(driver!['coords']['latitude'],
+                      driver!['coords']['longitude']),
+                  mapController.camera.zoom);
+            }
+          }
+          if (driverPositions.length > 50) {
+            driverPositions.removeFirst();
+          }
+          final pos = LatLng(
+              driver!['coords']['latitude'], driver!['coords']['longitude']);
+          if (Geolocator.distanceBetween(pos.latitude, pos.longitude,
+                      busStop.latitude, busStop.longitude) <
+                  arrivalRange &&
+              !driverArrived) {
+            moveCamera(this, mapController, pos, 15.5);
+            driverArrived = true;
+            showArrived = true;
+            arrivedTimer = Timer(const Duration(seconds: 5), () {
+              showArrived = false;
+              setState(() {});
+            });
+            HapticFeedback.heavyImpact();
+          }
+          if (driverPositions.isEmpty || driverPositions.last != pos) {
+            driverPositions.addLast(pos);
+          }
         }
-        if (driverPositions.isEmpty || driverPositions.last != pos) {
-          driverPositions.addLast(pos);
+        break;
+      case typePingPassengers:
+        HapticFeedback.heavyImpact();
+        _acceptDriver();
+        break;
+      case typePingDriver:
+        if (data == null) {
+          requestTimeout = true;
         }
-      }
-    }
-    if (type == typePingPassengers) {
-      HapticFeedback.heavyImpact();
-      _acceptDriver();
-    }
-    if (type == typePingDriver) {
-      if (data == null) {
-        requestTimeout = true;
-      }
-      driver = data;
-    }
-    if (type == typeArrivedDestination) {
-      HapticFeedback.heavyImpact();
-      _moveCamera(mapController,
-          LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
-      final double rating = await _arrivedDialog();
-      if (!mounted) return;
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeSendRatings,
-        'data': {
-          'users': [driver!['id']],
-          'ratings': [rating]
-        }
-      }));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomePage()),
-      );
+        driver = data;
+        break;
+      case typeArrivedDestination:
+        if (driver == null) return;
+        HapticFeedback.heavyImpact();
+        moveCamera(this, mapController,
+            LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
+        final List<double>? rating = await arrivedDialog(
+            context: context, users: [driver!], typeOfUser: TypeOfUser.driver);
+        if (rating == null) return;
+        if (!mounted) return;
+        SocketConnection.channel.add(jsonEncode({
+          'type': typeSendRatings,
+          'data': {
+            'users': [driver!['id']],
+            'ratings': rating
+          }
+        }));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const WelcomePage()),
+        );
+        break;
     }
     if (!mounted) return;
     setState(() {});
   }
 
-  Future _arrivedDialog() async {
-    ValueNotifier<double> rating = ValueNotifier(0);
-    Widget ratingBar = ValueListenableBuilder(
-        valueListenable: rating,
-        builder: (context, value, child) {
-          return Row(
-            children: [
-              RatingBar.builder(
-                  itemSize: 36,
-                  glow: false,
-                  initialRating: value,
-                  minRating: 1,
-                  itemBuilder: (context, index) => const Icon(
-                        Icons.star_rounded,
-                        color: Colors.amber,
-                      ),
-                  onRatingUpdate: (value) {
-                    rating.value = value;
-                  }),
-              Visibility(
-                visible: value != 0,
-                maintainSize: true,
-                maintainAnimation: true,
-                maintainState: true,
-                child: IconButton(
-                    onPressed: () {
-                      rating.value = 0;
-                    },
-                    iconSize: 30,
-                    icon: const Icon(Icons.close)),
-              ),
-            ],
-          );
-        });
-    await showDialog<List<double>>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return Dialog(
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Padding(padding: EdgeInsets.symmetric(vertical: 14.0)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    "You have reached your destination!",
-                    style:
-                        TextStyle(fontSize: 26.0, fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Text(
-                    "Please rate your experience with the driver (optional)",
-                    style: TextStyle(fontSize: 16.0),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-                ListTile(
-                  title: Text("${driver!['name']}"),
-                  leading: driver!['picture'] != null
-                      ? CachedNetworkImage(
-                          imageUrl:
-                              "http://$mediaHost/media/images/users/${driver!['picture']}",
-                          imageBuilder: (context, imageProvider) =>
-                              CircleAvatar(
-                            radius: 26.0,
-                            backgroundImage: imageProvider,
-                          ),
-                          placeholder: (context, url) =>
-                              const CircularProgressIndicator(),
-                          errorWidget: (context, url, error) =>
-                              const CircleAvatar(
-                            radius: 26.0,
-                            backgroundImage:
-                                AssetImage("assets/images/blank_profile.png"),
-                          ),
-                        )
-                      : const CircleAvatar(
-                          radius: 26.0,
-                          backgroundImage:
-                              AssetImage("assets/images/blank_profile.png"),
-                        ),
-                  subtitle: ratingBar,
-                ),
-                Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12.0),
-                      child: TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                          },
-                          child: const Text(
-                            "Submit",
-                            style: TextStyle(fontSize: 18.0),
-                          )),
-                    )),
-              ],
-            ),
-          );
-        });
-    return rating.value;
-  }
-
   void _sendPassenger() async {
     if (!inRadius) {
       final pos = await Geolocator.getLastKnownPosition();
-      if (pos == null) {
-        return;
-      }
+      if (pos == null) return;
       coordinates = pos;
-      if (Geolocator.distanceBetween(coordinates!.latitude,
-              coordinates!.longitude, busStop.latitude, busStop.longitude) >
-          100) {
-        return;
-      }
+      final distanceToBusStop = Geolocator.distanceBetween(
+          coordinates!.latitude,
+          coordinates!.longitude,
+          busStop.latitude,
+          busStop.longitude);
+      if (distanceToBusStop > busStopRange) return;
       inRadius = true;
       SocketConnection.channel.add(jsonEncode({
         'type': typeNewPassenger,
@@ -291,7 +183,7 @@ class _PassengerPageState extends State<PassengerPage>
   }
 
   void _acceptDriver() async {
-    int initalSeconds = 20;
+    int initalSeconds = pairingRequestTimeout;
     ValueNotifier<int> remainingSeconds = ValueNotifier(initalSeconds);
     Timer countdownSecTimer =
         Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -408,7 +300,8 @@ class _PassengerPageState extends State<PassengerPage>
       child: ListTile(
         onTap: () {
           followDriver = true;
-          _moveCamera(
+          moveCamera(
+              this,
               mapController,
               LatLng(
                   driver['coords']['latitude'], driver['coords']['longitude']),
@@ -431,7 +324,7 @@ class _PassengerPageState extends State<PassengerPage>
                 child: driver['picture'] != null
                     ? CachedNetworkImage(
                         imageUrl:
-                            'http://$mediaHost/media/images/users/${driver['picture']}',
+                            'http://$mediaHost/images/users/${driver['picture']}',
                         placeholder: (context, url) =>
                             Image.asset("assets/images/blank_profile.png"),
                         errorWidget: (context, url, error) =>
@@ -509,8 +402,7 @@ class _PassengerPageState extends State<PassengerPage>
         padding: const EdgeInsets.all(8.0),
         child: FittedBox(
           child: CachedNetworkImage(
-            imageUrl:
-                'http://$mediaHost/media/images/users/${driver!['picture']}',
+            imageUrl: 'http://$mediaHost/images/users/${driver!['picture']}',
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
@@ -523,7 +415,7 @@ class _PassengerPageState extends State<PassengerPage>
         child: FittedBox(
           child: CachedNetworkImage(
             imageUrl:
-                'http://$mediaHost/media/images/cars/${driver!['car']['picture']}',
+                'http://$mediaHost/images/cars/${driver!['car']['picture']}',
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
@@ -545,24 +437,6 @@ class _PassengerPageState extends State<PassengerPage>
                     children: images,
                   )));
         });
-  }
-
-  Future<String?> _uploadUserImage(String path, String? previousImage) async {
-    if (previousImage != null) {
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeDeletePicture,
-        'data': {'picture': previousImage}
-      }));
-    }
-    var request = http.MultipartRequest(
-        'POST', Uri.parse('http://$mediaHost/media/images/users'));
-    request.files.add(await http.MultipartFile.fromPath('file', path,
-        contentType: MediaType('image', 'png')));
-    final response = await http.Response.fromStream(await request.send());
-    if (response.statusCode == 200) {
-      return response.body;
-    }
-    return null;
   }
 
   List<Marker> _driverToMarker() {
@@ -593,32 +467,6 @@ class _PassengerPageState extends State<PassengerPage>
     ];
   }
 
-  void _moveCamera(MapController mapController, LatLng dest, double zoom) {
-    final camera = mapController.camera;
-    final latTween =
-        Tween<double>(begin: camera.center.latitude, end: dest.latitude);
-    final lngTween =
-        Tween<double>(begin: camera.center.longitude, end: dest.longitude);
-    final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
-    final controller = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
-    final Animation<double> animation =
-        CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
-    controller.addListener(() {
-      mapController.move(
-          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
-          zoomTween.evaluate(animation));
-    });
-    animation.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        controller.dispose();
-      } else if (status == AnimationStatus.dismissed) {
-        controller.dispose();
-      }
-    });
-    controller.forward();
-  }
-
   Widget _buildMap() {
     return FlutterMap(
       mapController: mapController,
@@ -627,13 +475,7 @@ class _PassengerPageState extends State<PassengerPage>
           initialZoom: 14,
           minZoom: 14,
           maxZoom: 16,
-          cameraConstraint: CameraConstraint.containCenter(
-              bounds: LatLngBounds.fromPoints(const [
-            LatLng(38.0043, 23.7532),
-            LatLng(37.9746, 23.7532),
-            LatLng(37.9746, 23.7994),
-            LatLng(38.0043, 23.7994)
-          ])),
+          cameraConstraint: CameraConstraint.containCenter(bounds: mapBounds),
           interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all - InteractiveFlag.rotate),
           onPositionChanged: (position, hasGesture) {
@@ -674,13 +516,11 @@ class _PassengerPageState extends State<PassengerPage>
             alignment: const Alignment(1, -0.95),
             child: ElevatedButton(
                 onPressed: coordinates != null
-                    ? () {
-                        _moveCamera(
-                            mapController,
-                            LatLng(
-                                coordinates!.latitude, coordinates!.longitude),
-                            mapController.camera.zoom);
-                      }
+                    ? () => moveCamera(
+                        this,
+                        mapController,
+                        LatLng(coordinates!.latitude, coordinates!.longitude),
+                        mapController.camera.zoom)
                     : null,
                 style: ElevatedButton.styleFrom(
                     shape: const CircleBorder(),
@@ -776,224 +616,13 @@ class _PassengerPageState extends State<PassengerPage>
     }
   }
 
-  Future<bool> _stopPassengerDialog() async {
-    if (driver == null) return Future.value(true);
-    bool? reply = await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Really switch to driver mode?'),
-            content: const Text('The current ride will be cancelled'),
-            actions: [
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context, true);
-                  },
-                  child: const Text('Yes')),
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context, false);
-                  },
-                  child: const Text('No'))
-            ],
-          );
-        });
-    return reply ?? false;
-  }
-
-  Future<String?> _pickUserImage() async {
-    try {
-      final selection =
-          await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (selection == null) return null;
-      CroppedFile? cropped = await ImageCropper().cropImage(
-          sourcePath: selection.path,
-          aspectRatioPresets: [CropAspectRatioPreset.square],
-          uiSettings: [AndroidUiSettings()]);
-      if (cropped == null) return null;
-      return cropped.path;
-    } on PlatformException catch (e) {
-      debugPrint("Error: $e");
-      return null;
+  void _onPositionChanged(Position? position) {
+    if (position == null) {
+      debugPrint('Error position');
+      return;
     }
-  }
-
-  Future _showProfile() async {
-    ValueNotifier<String?> imagePath =
-        ValueNotifier(Provider.of<User>(context, listen: false).picture);
-    final user = Provider.of<User>(context, listen: false);
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return Center(
-          child: Stack(
-            alignment: const FractionalOffset(0.5, 0),
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    color: Colors.transparent,
-                    height: 80,
-                    width: 160,
-                  ),
-                  Container(
-                    width: min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
-                    clipBehavior: Clip.hardEdge,
-                    decoration:
-                        BoxDecoration(borderRadius: BorderRadius.circular(24)),
-                    child: Material(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            const Padding(
-                                padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
-                            Text(
-                              user.name,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 2.0)),
-                            Text(
-                              user.id,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8.0)),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                RatingBarIndicator(
-                                  itemSize: 36.0,
-                                  rating: user.ratingsSum / user.ratingsCount,
-                                  itemBuilder: (context, index) => const Icon(
-                                    Icons.star_rounded,
-                                    color: Colors.amber,
-                                  ),
-                                ),
-                                const Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 4.0)),
-                                Text("(${user.ratingsCount})"),
-                              ],
-                            ),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 5.0)),
-                            TextButton(
-                                onPressed: () async {
-                                  bool? reply = await showDialog(
-                                      context: context,
-                                      builder: (context) {
-                                        return AlertDialog(
-                                          title: const Text('Really sign out?'),
-                                          actions: [
-                                            TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context, true);
-                                                },
-                                                child: const Text('Yes')),
-                                            TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(context, false);
-                                                },
-                                                child: const Text('No'))
-                                          ],
-                                        );
-                                      });
-                                  reply = reply ?? false;
-                                  if (!mounted) return;
-                                  if (reply) {
-                                    SecureStorage.deleteAllSecure();
-                                    SocketConnection.channel.add(jsonEncode(
-                                        {'type': typeSignout, 'data': {}}));
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const WelcomePage()),
-                                    );
-                                  }
-                                },
-                                child: const Text(
-                                  "Sign out",
-                                  style: TextStyle(fontSize: 16.0),
-                                )),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 2.0)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                ],
-              ),
-              IconButton(
-                onPressed: () async {
-                  final newImage = await _pickUserImage();
-                  if (newImage != null) {
-                    imagePath.value =
-                        await _uploadUserImage(newImage, imagePath.value);
-                    if (!mounted) return;
-                    SocketConnection.channel.add(jsonEncode({
-                      'type': typeUpdateUserPicture,
-                      'data': imagePath.value
-                    }));
-                    Provider.of<User>(context, listen: false).picture =
-                        imagePath.value;
-                    setState(() {});
-                  }
-                },
-                iconSize: 40,
-                icon: CircleAvatar(
-                  radius: 70,
-                  child: ClipRRect(
-                      borderRadius: BorderRadius.circular(70),
-                      child: ValueListenableBuilder(
-                          valueListenable: imagePath,
-                          builder: (context, value, child) {
-                            if (value != null) {
-                              return CachedNetworkImage(
-                                imageUrl:
-                                    'http://$mediaHost/media/images/users/$value',
-                                placeholder: (context, url) {
-                                  return const CircularProgressIndicator();
-                                },
-                              );
-                            }
-                            return Stack(
-                                alignment: AlignmentDirectional.center,
-                                children: [
-                                  Container(
-                                      height: 160,
-                                      width: 160,
-                                      color: Colors.grey.shade50,
-                                      child: Icon(
-                                        Icons.add_photo_alternate,
-                                        color: Colors.grey.shade600,
-                                        size: 50,
-                                      )),
-                                  Positioned(
-                                      bottom: 24,
-                                      child: Text(
-                                        'Add photo',
-                                        style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 15),
-                                      ))
-                                ]);
-                          })),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    coordinates = position;
+    _sendPassenger();
   }
 
   @override
@@ -1004,14 +633,7 @@ class _PassengerPageState extends State<PassengerPage>
         locationSettings: const LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 20,
-    )).listen((Position? position) {
-      if (position == null) {
-        debugPrint('Error position');
-        return;
-      }
-      coordinates = position;
-      _sendPassenger();
-    });
+    )).listen(_onPositionChanged);
     _sendPassenger();
   }
 
@@ -1029,44 +651,11 @@ class _PassengerPageState extends State<PassengerPage>
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(title: const Text('Passenger'), actions: [
-          IconButton(
-            onPressed: () async {
-              if (await _stopPassengerDialog() && mounted && inRadius) {
-                SocketConnection.channel
-                    .add(jsonEncode({'type': typeStopPassenger, 'data': {}}));
-              }
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DriverPage()),
-              );
-            },
-            iconSize: 26.0,
-            icon: const Icon(Icons.directions_car),
-            tooltip: 'Switch to driver mode',
-          ),
-          IconButton(
-              onPressed: _showProfile,
-              icon: Provider.of<User>(context, listen: false).picture != null
-                  ? CachedNetworkImage(
-                      imageUrl:
-                          "http://$mediaHost/media/images/users/${Provider.of<User>(context, listen: false).picture}",
-                      imageBuilder: (context, imageProvider) => CircleAvatar(
-                        radius: 18.0,
-                        backgroundImage: imageProvider,
-                      ),
-                      placeholder: (context, url) =>
-                          const CircularProgressIndicator(),
-                      errorWidget: (context, url, error) => const CircleAvatar(
-                        radius: 18.0,
-                        backgroundImage:
-                            AssetImage("assets/images/blank_profile.png"),
-                      ),
-                    )
-                  : const CircleAvatar(
-                      radius: 18.0,
-                      backgroundImage:
-                          AssetImage('assets/images/blank_profile.png'),
-                    )),
+          SwitchUserButton(
+              context: context,
+              skip: driver == null || !inRadius,
+              typeOfUser: TypeOfUser.passenger),
+          const UserImageButton(),
           const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
         ]),
         body: _buildPassengerScreen());
