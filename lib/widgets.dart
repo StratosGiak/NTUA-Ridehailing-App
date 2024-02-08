@@ -3,7 +3,10 @@ import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:uni_pool/driver.dart';
 import 'package:uni_pool/passenger.dart';
@@ -324,6 +327,118 @@ class SwitchUserButton extends StatelessWidget {
               : const Icon(Icons.directions_car),
       tooltip:
           'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode',
+    );
+  }
+}
+
+class CustomMap extends StatelessWidget {
+  const CustomMap(
+      {super.key,
+      required this.typeOfUser,
+      required this.mapController,
+      required this.markers,
+      required this.coordinates,
+      required this.showArrived,
+      required this.onMove,
+      required this.onPressGPS,
+      required this.centerGPS,
+      this.polylinePoints});
+
+  final TypeOfUser typeOfUser;
+  final MapController mapController;
+  final List<Marker> markers;
+  final Position? coordinates;
+  final bool showArrived;
+  final bool centerGPS;
+  final List<LatLng>? polylinePoints;
+  final void Function() onMove;
+  final void Function() onPressGPS;
+
+  @override
+  Widget build(BuildContext context) {
+    if (mapUrl.isEmpty) return const SizedBox.shrink();
+    return FlutterMap(
+      mapController: mapController,
+      options: MapOptions(
+          initialCenter: const LatLng(37.9923, 23.7764),
+          initialZoom: 14.5,
+          minZoom: 14,
+          maxZoom: 16,
+          cameraConstraint: CameraConstraint.contain(bounds: mapBounds),
+          interactionOptions:
+              const InteractionOptions(flags: ~InteractiveFlag.rotate),
+          onPositionChanged: (position, hasGesture) {
+            if (hasGesture) onMove();
+          }),
+      children: [
+        TileLayer(
+          urlTemplate: mapUrl,
+          tileProvider: NetworkTileProvider(),
+          // tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
+          //     const LatLng(37.97043, 23.80078)),
+          evictErrorTileStrategy: EvictErrorTileStrategy.dispose,
+        ),
+        if (polylinePoints != null)
+          PolylineLayer(polylines: [
+            Polyline(
+                points: polylinePoints!,
+                color: Colors.lightBlue.shade400.withAlpha(200),
+                strokeWidth: 6),
+          ]),
+        MarkerLayer(
+            markers: [
+                  if (coordinates != null)
+                    Marker(
+                        point: LatLng(
+                            coordinates!.latitude, coordinates!.longitude),
+                        height: 14,
+                        width: 14,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.blue,
+                              boxShadow: [
+                                BoxShadow(spreadRadius: 0.1, blurRadius: 2)
+                              ]),
+                        ))
+                ] +
+                markers),
+        const Padding(padding: EdgeInsets.all(30)),
+        Align(
+            alignment: const Alignment(1, -0.95),
+            child: ElevatedButton(
+                onPressed: coordinates != null ? onPressGPS : null,
+                style: ElevatedButton.styleFrom(
+                    shape: const CircleBorder(),
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.all(5)),
+                child: Icon(
+                  centerGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
+                  size: 30,
+                ))),
+        const SimpleAttributionWidget(
+            source: Text("OpenStreetMap contributors")),
+        Visibility(
+            visible: showArrived,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Container(
+                  padding: const EdgeInsets.all(8.0),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white70),
+                  child: Text(
+                    typeOfUser == TypeOfUser.driver
+                        ? 'Please wait for all passengers to board the car'
+                        : 'Your driver has arrived. Please board the car',
+                    style: const TextStyle(fontSize: 30),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ))
+      ],
     );
   }
 }

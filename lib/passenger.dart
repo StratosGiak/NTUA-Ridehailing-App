@@ -439,121 +439,6 @@ class _PassengerPageState extends State<PassengerPage>
         });
   }
 
-  List<Marker> _driverToMarker() {
-    if (driver == null) return [];
-    return [
-      Marker(
-          height: 22,
-          width: 22,
-          point: LatLng(
-              driver!["coords"]["latitude"], driver!["coords"]["longitude"]),
-          child: Stack(children: [
-            Container(
-              decoration: const BoxDecoration(shape: BoxShape.circle),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: driver!['car']['color'] != null
-                      ? Color(int.parse(driver!['car']['color']))
-                      : colors[
-                          int.parse(driver!['id'][driver!['id'].length - 1])],
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(spreadRadius: 0.1, blurRadius: 3.5)
-                  ]),
-            ),
-          ]))
-    ];
-  }
-
-  Widget _buildMap() {
-    return FlutterMap(
-      mapController: mapController,
-      options: MapOptions(
-          initialCenter: const LatLng(37.9923, 23.7764),
-          initialZoom: 14,
-          minZoom: 14,
-          maxZoom: 16,
-          cameraConstraint: CameraConstraint.containCenter(bounds: mapBounds),
-          interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all - InteractiveFlag.rotate),
-          onPositionChanged: (position, hasGesture) {
-            if (hasGesture) {
-              followDriver = false;
-            }
-          }),
-      children: [
-        TileLayer(
-          urlTemplate: mapUrl,
-        ),
-        PolylineLayer(polylines: [
-          Polyline(
-              points: driverPositions.toList(),
-              color: Colors.lightBlue.shade400.withAlpha(200),
-              strokeWidth: 6),
-        ]),
-        MarkerLayer(markers: _driverToMarker()),
-        coordinates == null
-            ? Container()
-            : MarkerLayer(markers: [
-                Marker(
-                    point:
-                        LatLng(coordinates!.latitude, coordinates!.longitude),
-                    height: 14,
-                    width: 14,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.blue,
-                          boxShadow: [
-                            BoxShadow(spreadRadius: 0.1, blurRadius: 2)
-                          ]),
-                    ))
-              ]),
-        const Padding(padding: EdgeInsets.all(30)),
-        Align(
-            alignment: const Alignment(1, -0.95),
-            child: ElevatedButton(
-                onPressed: coordinates != null
-                    ? () => moveCamera(
-                        this,
-                        mapController,
-                        LatLng(coordinates!.latitude, coordinates!.longitude),
-                        mapController.camera.zoom)
-                    : null,
-                style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.all(5)),
-                child: const Icon(
-                  Icons.gps_fixed,
-                  size: 30,
-                ))),
-        const SimpleAttributionWidget(
-            source: Text("OpenStreetMap contributors")),
-        Visibility(
-            visible: showArrived,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white70),
-                  child: const Text(
-                    'Your driver has arrived. Please board the car',
-                    style: TextStyle(fontSize: 30),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            ))
-      ],
-    );
-  }
-
   Widget _buildPassengerScreen() {
     if (!inRadius) {
       return const Center(
@@ -598,7 +483,21 @@ class _PassengerPageState extends State<PassengerPage>
       );
     } else {
       return Column(children: [
-        Expanded(flex: 1, child: _buildMap()),
+        Expanded(
+            flex: 1,
+            child: CustomMap(
+                typeOfUser: TypeOfUser.passenger,
+                mapController: mapController,
+                markers: usersToMarkers([if (driver != null) driver!]),
+                coordinates: coordinates,
+                showArrived: showArrived,
+                onMove: () => setState(() => followDriver = false),
+                onPressGPS: () => moveCamera(
+                    this,
+                    mapController,
+                    LatLng(coordinates!.latitude, coordinates!.longitude),
+                    mapController.camera.zoom),
+                centerGPS: true)),
         Container(
             color: Colors.white,
             child: Column(children: [

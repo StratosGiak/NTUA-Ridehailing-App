@@ -301,3 +301,29 @@ Future<bool> stopDialog(
       });
   return reply ?? false;
 }
+
+List<Marker> usersToMarkers(List<Map<String, dynamic>> users) {
+  return users
+      .map((user) => Marker(
+          height: 22,
+          width: 22,
+          point:
+              LatLng(user["coords"]["latitude"], user["coords"]["longitude"]),
+          child: Stack(children: [
+            Container(
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: user['car'] != null && user['car']['color'] != null
+                      ? Color(int.parse(user['car']['color']))
+                      : colors[int.parse(user["id"][user["id"].length - 1])],
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: const [
+                    BoxShadow(spreadRadius: 0.1, blurRadius: 3)
+                  ]),
+            ),
+          ])))
+      .toList();
+}

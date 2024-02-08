@@ -243,127 +243,6 @@ class _DriverPageState extends State<DriverPage>
     setState(() {});
   }
 
-  List<Marker> _passengersToMarkers() {
-    List<Marker> markers = [];
-    for (var passenger in passengers) {
-      markers.add(Marker(
-          height: 22,
-          width: 22,
-          point: LatLng(passenger["coords"]["latitude"],
-              passenger["coords"]["longitude"]),
-          child: Stack(children: [
-            Container(
-              decoration: const BoxDecoration(shape: BoxShape.circle),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colors[
-                      int.parse(passenger["id"][passenger["id"].length - 1])],
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(spreadRadius: 0.1, blurRadius: 3)
-                  ]),
-            ),
-          ])));
-    }
-    return markers;
-  }
-
-  Widget _buildMap() {
-    if (mapUrl.isEmpty) return Container();
-    return FlutterMap(
-      mapController: mapController,
-      options: MapOptions(
-        initialCenter: const LatLng(37.9923, 23.7764),
-        initialZoom: 14.5,
-        minZoom: 14,
-        maxZoom: 16,
-        cameraConstraint: CameraConstraint.contain(bounds: mapBounds),
-        interactionOptions: const InteractionOptions(
-            flags: InteractiveFlag.all - InteractiveFlag.rotate),
-        onPositionChanged: (position, hasGesture) {
-          if (hasGesture) {
-            followDriver = false;
-          }
-        },
-      ),
-      children: [
-        TileLayer(
-          urlTemplate:
-              'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=umhAaMGooyIsumfuR9Fi',
-          tileProvider: NetworkTileProvider(),
-          // tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
-          //     const LatLng(37.97043, 23.80078)),
-          errorTileCallback: (tile, error, stackTrace) {},
-          evictErrorTileStrategy: EvictErrorTileStrategy.dispose,
-        ),
-        MarkerLayer(markers: _passengersToMarkers()),
-        coordinates == null
-            ? Container()
-            : MarkerLayer(markers: [
-                Marker(
-                    point:
-                        LatLng(coordinates!.latitude, coordinates!.longitude),
-                    height: 16,
-                    width: 16,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.blue,
-                          boxShadow: [
-                            BoxShadow(spreadRadius: 0.1, blurRadius: 2)
-                          ]),
-                    ))
-              ]),
-        const Padding(padding: EdgeInsets.all(30)),
-        Align(
-            alignment: const Alignment(1, -0.95),
-            child: ElevatedButton(
-                onPressed: coordinates != null
-                    ? () {
-                        followDriver = true;
-                        setState(() {});
-                        moveCamera(
-                            this,
-                            mapController,
-                            LatLng(
-                                coordinates!.latitude, coordinates!.longitude),
-                            mapController.camera.zoom);
-                      }
-                    : null,
-                style: ElevatedButton.styleFrom(
-                    shape: const CircleBorder(),
-                    backgroundColor: Colors.white,
-                    padding: const EdgeInsets.all(5)),
-                child: Icon(
-                  followDriver ? Icons.gps_fixed : Icons.gps_not_fixed,
-                  size: 30,
-                ))),
-        const SimpleAttributionWidget(
-            source: Text("OpenStreetMap contributors")),
-        Visibility(
-            visible: showArrived,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Container(
-                  padding: const EdgeInsets.all(8.0),
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white70),
-                  child: const Text(
-                    'Please wait for all passengers to board the car',
-                    style: TextStyle(fontSize: 30),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-            ))
-      ],
-    );
-  }
-
   void _showPassengerPicture(int index) {
     showDialog(
         context: context,
@@ -406,7 +285,24 @@ class _DriverPageState extends State<DriverPage>
         );
       }
       List<Widget> children = [
-        Expanded(flex: 1, child: _buildMap()),
+        Expanded(
+            flex: 1,
+            child: CustomMap(
+                typeOfUser: TypeOfUser.passenger,
+                mapController: mapController,
+                markers: usersToMarkers(passengers),
+                coordinates: coordinates,
+                showArrived: showArrived,
+                onMove: () => setState(() => followDriver = false),
+                onPressGPS: () {
+                  moveCamera(
+                      this,
+                      mapController,
+                      LatLng(coordinates!.latitude, coordinates!.longitude),
+                      mapController.camera.zoom);
+                  setState(() => followDriver = true);
+                },
+                centerGPS: followDriver)),
         Container(
           color: Colors.white,
           child: Column(
