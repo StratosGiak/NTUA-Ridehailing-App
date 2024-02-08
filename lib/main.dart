@@ -16,20 +16,17 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<User>(create: (context) => User()),
-      ],
-      builder: (context, child) {
-        return MaterialApp(
-            title: 'Flutter Demo',
-            theme: ThemeData(
-              scaffoldBackgroundColor: const Color.fromARGB(255, 236, 242, 248),
-              colorScheme: ColorScheme.fromSeed(
-                  seedColor: const Color.fromARGB(255, 110, 169, 236)),
-              useMaterial3: true,
-            ),
-            home: const WelcomePage());
-      },
-    );
+        providers: [ChangeNotifierProvider<User>(create: (context) => User())],
+        builder: (context, child) {
+          return MaterialApp(
+              title: 'Flutter Demo',
+              theme: ThemeData(
+                  scaffoldBackgroundColor:
+                      const Color.fromARGB(255, 236, 242, 248),
+                  colorScheme: ColorScheme.fromSeed(
+                      seedColor: const Color.fromARGB(255, 110, 169, 236)),
+                  useMaterial3: true),
+              home: const WelcomePage());
+        });
   }
 }

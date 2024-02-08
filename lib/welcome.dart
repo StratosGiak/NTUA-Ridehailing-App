@@ -82,9 +82,7 @@ class _WelcomePageState extends State<WelcomePage> {
     _connected = null;
     setState(() {});
     _connected = await SocketConnection.create();
-    if (_connected!) {
-      await _checkLoggedIn();
-    }
+    if (_connected!) await _checkLoggedIn();
     setState(() {});
   }
 
@@ -124,47 +122,37 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         body: SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
+            child: Center(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+          const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
                 padding: const EdgeInsets.all(4),
                 child: IconButton(
-                  icon: const Icon(
-                    Icons.help,
-                  ),
-                  iconSize: 35,
-                  onPressed: () => (),
-                ),
-              ),
-              const Spacer(
-                flex: 1,
-              ),
-              UserImageButton(enablePress: _loggedIn, showSignout: false),
-              const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
-            ]),
-            const Spacer(
-              flex: 10,
-            ),
-            const Text(
-              'LOGO',
-              style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
-            ),
-            const Spacer(flex: 10),
-            Builder(builder: (context) {
-              return TextButton(
-                  onPressed: _connected == null || _loggedIn
-                      ? null
-                      : _connected!
-                          ? _logInRequest
-                          : _connect,
-                  child: Selector<User, String>(
-                      selector: (_, user) => user.name,
-                      builder: (_, name, __) {
-                        return Text(
+                    icon: const Icon(Icons.help),
+                    iconSize: 35,
+                    onPressed: () => ())),
+            const Spacer(flex: 1),
+            UserImageButton(enablePress: _loggedIn, showSignout: false),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
+          ]),
+          const Spacer(flex: 10),
+          const Text('LOGO',
+              style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900)),
+          const Spacer(flex: 10),
+          Builder(builder: (context) {
+            return TextButton(
+                onPressed: _connected == null || _loggedIn
+                    ? null
+                    : _connected!
+                        ? _logInRequest
+                        : _connect,
+                child: Selector<User, String>(
+                    selector: (_, user) => user.name,
+                    builder: (_, name, __) {
+                      return Text(
                           _connected == null
                               ? 'Connecting...'
                               : !_connected!
@@ -173,40 +161,33 @@ class _WelcomePageState extends State<WelcomePage> {
                                       ? 'Logged in as $name'
                                       : 'Login',
                           style: const TextStyle(fontSize: 30),
-                          textAlign: TextAlign.center,
-                        );
-                      }));
-            }),
-            Visibility(
+                          textAlign: TextAlign.center);
+                    }));
+          }),
+          Visibility(
               visible: !_loggedIn,
               maintainSize: true,
               maintainAnimation: true,
               maintainState: true,
-              child: const Text('You must be logged in to use the app'),
-            ),
-            const Spacer(flex: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SubtitledButton(
-                    icon: const Icon(Icons.directions_car),
-                    subtitle: const Text("I am a driver"),
-                    onPressed: _loggedIn
-                        ? () => _navigateToMain(TypeOfUser.driver)
-                        : null),
-                const Padding(padding: EdgeInsets.all(35)),
-                SubtitledButton(
-                    icon: const Icon(Icons.directions_walk),
-                    subtitle: const Text("I am a passenger"),
-                    onPressed: _loggedIn
-                        ? () => _navigateToMain(TypeOfUser.passenger)
-                        : null),
-              ],
-            ),
-            const Spacer(
-              flex: 20,
-            ),
-            Visibility(
+              child: const Text('You must be logged in to use the app')),
+          const Spacer(flex: 12),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            SubtitledButton(
+                icon: const Icon(Icons.directions_car),
+                subtitle: const Text("I am a driver"),
+                onPressed: _loggedIn
+                    ? () => _navigateToMain(TypeOfUser.driver)
+                    : null),
+            const Padding(padding: EdgeInsets.all(35)),
+            SubtitledButton(
+                icon: const Icon(Icons.directions_walk),
+                subtitle: const Text("I am a passenger"),
+                onPressed: _loggedIn
+                    ? () => _navigateToMain(TypeOfUser.passenger)
+                    : null)
+          ]),
+          const Spacer(flex: 20),
+          Visibility(
               visible: _loggedIn,
               maintainSize: true,
               maintainAnimation: true,
@@ -217,15 +198,9 @@ class _WelcomePageState extends State<WelcomePage> {
                         context: context, content: const SizedBox());
                     if (reply) setState(() => _loggedIn = false);
                   },
-                  child: const Text(
-                    'Sign out',
-                    style: TextStyle(fontSize: 25),
-                  )),
-            ),
-            const Padding(padding: EdgeInsets.all(12))
-          ],
-        ),
-      ),
-    ));
+                  child:
+                      const Text('Sign out', style: TextStyle(fontSize: 25)))),
+          const Padding(padding: EdgeInsets.all(12))
+        ]))));
   }
 }

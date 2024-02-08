@@ -26,11 +26,8 @@ class _WebVieScreenState extends State<WebViewScreen> {
   Widget build(BuildContext context) {
     return WillPopScope(
         child: Scaffold(
-          appBar: AppBar(
-            title: const Text('Browser'),
-          ),
-          body: WebViewWidget(controller: webViewController),
-        ),
+            appBar: AppBar(title: const Text('Browser')),
+            body: WebViewWidget(controller: webViewController)),
         onWillPop: () {
           Navigator.pop(
               context,

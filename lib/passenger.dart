@@ -165,7 +165,7 @@ class _PassengerPageState extends State<PassengerPage>
             "latitude": coordinates!.latitude,
             "longitude": coordinates!.longitude
           },
-          'timestamp': coordinates!.timestamp!.toIso8601String(),
+          'timestamp': coordinates!.timestamp!.toIso8601String()
         }
       }));
     } else {
@@ -175,7 +175,7 @@ class _PassengerPageState extends State<PassengerPage>
           'coords': {
             "latitude": coordinates!.latitude,
             "longitude": coordinates!.longitude
-          },
+          }
         }
       }));
     }
@@ -193,9 +193,8 @@ class _PassengerPageState extends State<PassengerPage>
         timer.cancel();
       }
     });
-    Timer countdownDismissTimer = Timer(Duration(seconds: initalSeconds), () {
-      Navigator.of(context, rootNavigator: true).pop(false);
-    });
+    Timer countdownDismissTimer = Timer(Duration(seconds: initalSeconds),
+        () => Navigator.of(context, rootNavigator: true).pop(false));
     bool? reply = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -203,60 +202,45 @@ class _PassengerPageState extends State<PassengerPage>
           return Dialog(
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8.0)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Padding(padding: EdgeInsets.all(5.0)),
-                  const Padding(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Padding(padding: EdgeInsets.all(5.0)),
+                const Padding(
                     padding: EdgeInsets.all(10.0),
-                    child: Text(
-                      "A driver is available. Accept them?",
-                      style: TextStyle(
-                          fontSize: 25.0, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  ValueListenableBuilder(
-                      valueListenable: remainingSeconds,
-                      builder: (context, value, child) {
-                        return Text(
-                          "$value",
+                    child: Text("A driver is available. Accept them?",
+                        style: TextStyle(
+                            fontSize: 25.0, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center)),
+                ValueListenableBuilder(
+                    valueListenable: remainingSeconds,
+                    builder: (context, value, child) {
+                      return Text("$value",
                           style: TextStyle(
                               color: Colors.grey.shade800,
                               fontSize: 30.0,
                               fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                        );
-                      }),
-                  const Padding(padding: EdgeInsets.all(10.0)),
-                  Row(
+                          textAlign: TextAlign.center);
+                    }),
+                const Padding(padding: EdgeInsets.all(10.0)),
+                Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       IconButton.filled(
-                        onPressed: () {
-                          Navigator.pop(context, true);
-                        },
-                        style: ButtonStyle(
-                            backgroundColor: MaterialStatePropertyAll(
-                                Colors.green.shade300)),
-                        iconSize: 55.0,
-                        icon: const Icon(Icons.check_rounded),
-                      ),
+                          onPressed: () => Navigator.pop(context, true),
+                          style: ButtonStyle(
+                              backgroundColor: MaterialStatePropertyAll(
+                                  Colors.green.shade300)),
+                          iconSize: 55.0,
+                          icon: const Icon(Icons.check_rounded)),
                       IconButton.filled(
-                        onPressed: () {
-                          Navigator.pop(context, false);
-                        },
-                        style: ButtonStyle(
-                            backgroundColor:
-                                MaterialStatePropertyAll(Colors.red.shade300)),
-                        iconSize: 55.0,
-                        icon: const Icon(Icons.close_rounded),
-                      )
-                    ],
-                  ),
-                  const Padding(padding: EdgeInsets.all(10.0))
-                ],
-              ));
+                          onPressed: () => Navigator.pop(context, false),
+                          style: ButtonStyle(
+                              backgroundColor: MaterialStatePropertyAll(
+                                  Colors.red.shade300)),
+                          iconSize: 55.0,
+                          icon: const Icon(Icons.close_rounded))
+                    ]),
+                const Padding(padding: EdgeInsets.all(10.0))
+              ]));
         }).then((value) {
       countdownSecTimer.cancel();
       countdownDismissTimer.cancel();
@@ -280,7 +264,7 @@ class _PassengerPageState extends State<PassengerPage>
                 "latitude": coordinates!.latitude,
                 "longitude": coordinates!.longitude
               },
-              'timestamp': coordinates!.timestamp!.toIso8601String(),
+              'timestamp': coordinates!.timestamp!.toIso8601String()
             }
           }));
         });

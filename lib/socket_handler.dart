@@ -33,13 +33,11 @@ class SocketConnection {
   }
 
   static void broadcast() {
-    channel.listen((data) {
-      receiveController.add(data);
-    }, onDone: () {
-      _onDone();
-    }, onError: (error) {
-      _onError();
-    });
+    channel.listen(
+      (data) => receiveController.add(data),
+      onDone: () => _onDone(),
+      onError: (error) => _onError(),
+    );
   }
 
   static Future<WebSocket?> connect() async {
@@ -48,9 +46,7 @@ class SocketConnection {
           .timeout(const Duration(seconds: 5));
     } catch (error) {
       ++tries;
-      if (tries > 2) {
-        return null;
-      }
+      if (tries > 2) return null;
       debugPrint("CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries");
       await Future.delayed(const Duration(seconds: 2));
       return await connect();

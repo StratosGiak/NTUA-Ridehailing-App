@@ -256,18 +256,15 @@ class _DriverPageState extends State<DriverPage>
                   constraints: BoxConstraints.tight(
                       Size.square(MediaQuery.of(context).size.width)),
                   child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: FittedBox(
-                      child: CachedNetworkImage(
-                        imageUrl:
-                            'http://$mediaHost/images/users/${passengers[index]['picture']}',
-                        placeholder: (context, url) =>
-                            const CircularProgressIndicator(),
-                        errorWidget: (context, url, error) =>
-                            const Icon(Icons.error),
-                      ),
-                    ),
-                  )));
+                      padding: const EdgeInsets.all(8.0),
+                      child: FittedBox(
+                          child: CachedNetworkImage(
+                              imageUrl:
+                                  'http://$mediaHost/images/users/${passengers[index]['picture']}',
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error))))));
         });
   }
 
@@ -275,14 +272,13 @@ class _DriverPageState extends State<DriverPage>
     if (waitingForPassengers) {
       if (passengers.isEmpty) {
         return const Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text('Waiting for passengers to respond...',
-                style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center),
-            Padding(padding: EdgeInsets.all(10.0)),
-            CircularProgressIndicator(),
-          ]),
-        );
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('Waiting for passengers to respond...',
+              style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
+          Padding(padding: EdgeInsets.all(10.0)),
+          CircularProgressIndicator()
+        ]));
       }
       List<Widget> children = [
         Expanded(
@@ -304,99 +300,83 @@ class _DriverPageState extends State<DriverPage>
                 },
                 centerGPS: followDriver)),
         Container(
-          color: Colors.white,
-          child: Column(
-            children: [
+            color: Colors.white,
+            child: Column(children: [
               const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  "Passengers",
-                  style: TextStyle(fontSize: 20),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text("Passengers",
+                      style: TextStyle(fontSize: 20),
+                      textAlign: TextAlign.center)),
               ListView.separated(
                   shrinkWrap: true,
                   itemBuilder: (context, index) {
                     return ListTile(
-                        onTap: () {
-                          moveCamera(
-                              this,
-                              mapController,
-                              LatLng(passengers[index]["coords"]["latitude"],
-                                  passengers[index]["coords"]["longitude"]),
-                              15.5);
-                        },
+                        onTap: () => moveCamera(
+                            this,
+                            mapController,
+                            LatLng(passengers[index]["coords"]["latitude"],
+                                passengers[index]["coords"]["longitude"]),
+                            15.5),
                         leading: CircleAvatar(
-                          radius: 25.0,
-                          child: InkWell(
-                            onTap: () {
-                              _showPassengerPicture(index);
-                            },
-                            onLongPress: () {},
-                            child: Ink(
-                              color: Colors.black,
-                              child: passengers[index]['picture'] != null
-                                  ? CachedNetworkImage(
-                                      imageUrl:
-                                          "http://$mediaHost/images/users/${passengers[index]['picture']}",
-                                      imageBuilder: (context, imageProvider) =>
-                                          CircleAvatar(
-                                        radius: 25.0,
-                                        backgroundImage: imageProvider,
-                                      ),
-                                      placeholder: (context, url) =>
-                                          const SizedBox(
-                                              height: 50.0,
-                                              width: 50.0,
-                                              child:
-                                                  CircularProgressIndicator()),
-                                      errorWidget: (context, url, error) =>
-                                          const CircleAvatar(
-                                        radius: 26.0,
-                                        backgroundImage: AssetImage(
-                                            "assets/images/blank_profile.png"),
-                                      ),
-                                    )
-                                  : const CircleAvatar(
-                                      radius: 25.0,
-                                      backgroundImage: AssetImage(
-                                          "assets/images/blank_profile.png"),
-                                    ),
-                            ),
-                          ),
-                        ),
+                            radius: 25.0,
+                            child: InkWell(
+                                onTap: () => _showPassengerPicture(index),
+                                onLongPress: () {},
+                                child: Ink(
+                                    color: Colors.black,
+                                    child: passengers[index]['picture'] != null
+                                        ? CachedNetworkImage(
+                                            imageUrl:
+                                                "http://$mediaHost/images/users/${passengers[index]['picture']}",
+                                            imageBuilder:
+                                                (context, imageProvider) =>
+                                                    CircleAvatar(
+                                                        radius: 25.0,
+                                                        backgroundImage:
+                                                            imageProvider),
+                                            placeholder: (context, url) =>
+                                                const SizedBox(
+                                                    height: 50.0,
+                                                    width: 50.0,
+                                                    child:
+                                                        CircularProgressIndicator()),
+                                            errorWidget: (context, url,
+                                                    error) =>
+                                                const CircleAvatar(
+                                                    radius: 26.0,
+                                                    backgroundImage: AssetImage(
+                                                        "assets/images/blank_profile.png")))
+                                        : const CircleAvatar(
+                                            radius: 25.0,
+                                            backgroundImage: AssetImage(
+                                                "assets/images/blank_profile.png"),
+                                          )))),
                         title: Text("${passengers[index]['name']}"),
-                        subtitle: Row(
-                          children: [
-                            const Text("Rating:"),
-                            const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 3.0)),
-                            passengers[index]['ratings_count'] > 0
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      RatingBarIndicator(
+                        subtitle: Row(children: [
+                          const Text("Rating:"),
+                          const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 3.0)),
+                          passengers[index]['ratings_count'] > 0
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    RatingBarIndicator(
                                         itemSize: 22.0,
                                         rating: passengers[index]
                                                 ['ratings_sum'] /
                                             passengers[index]['ratings_count'],
                                         itemBuilder: (context, index) =>
-                                            const Icon(
-                                          Icons.star_rounded,
-                                          color: Colors.amber,
-                                        ),
-                                      ),
-                                      const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                              horizontal: 3.0)),
-                                      Text(
-                                          "(${passengers[index]['ratings_count']})"),
-                                    ],
-                                  )
-                                : const Text("N/A"),
-                          ],
-                        ),
+                                            const Icon(Icons.star_rounded,
+                                                color: Colors.amber)),
+                                    const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 3.0)),
+                                    Text(
+                                        "(${passengers[index]['ratings_count']})")
+                                  ],
+                                )
+                              : const Text("N/A")
+                        ]),
                         tileColor: Colors.white,
                         trailing: Icon(
                           Icons.circle,
@@ -407,31 +387,27 @@ class _DriverPageState extends State<DriverPage>
                   separatorBuilder: (context, index) => const Divider(),
                   itemCount: passengers.length),
               const Padding(padding: EdgeInsets.all(8.0))
-            ],
-          ),
-        ),
+            ]))
       ];
       return Column(mainAxisSize: MainAxisSize.min, children: children);
     }
     List<Widget> children = [
       Text(
-        'Looking for${requestTimeout || passengersCancelled ? " more" : ""} passengers...',
-        style: const TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
-      ),
+          'Looking for${requestTimeout || passengersCancelled ? " more" : ""} passengers...',
+          style: const TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center),
       const Padding(padding: EdgeInsets.all(10.0)),
-      const CircularProgressIndicator(),
+      const CircularProgressIndicator()
     ];
     if (requestTimeout || passengersCancelled) {
       children.insert(
           0,
           Text(
-            requestTimeout
-                ? 'No passengers responded'
-                : 'All the passengers cancelled the ride',
-            style: const TextStyle(fontSize: 22.0),
-            textAlign: TextAlign.center,
-          ));
+              requestTimeout
+                  ? 'No passengers responded'
+                  : 'All the passengers cancelled the ride',
+              style: const TextStyle(fontSize: 22.0),
+              textAlign: TextAlign.center));
     }
     return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: children));
@@ -447,55 +423,52 @@ class _DriverPageState extends State<DriverPage>
           shrinkWrap: true,
           itemBuilder: (context, index) {
             return ListTile(
-              onTap: () {},
-              onLongPress: () {},
-              title: Text(cars[keys[index]]!["model"]),
-              subtitle: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text("Seats: ${cars[keys[index]]!["seats"]}")),
-              leading: Radio<String>(
-                  value: keys[index],
-                  groupValue: selectedCar,
-                  onChanged: (value) {
-                    selectedCar = value!;
-                    setState(() {});
-                  }),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                onTap: () {},
+                onLongPress: () {},
+                title: Text(cars[keys[index]]!["model"]),
+                subtitle: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text("Seats: ${cars[keys[index]]!["seats"]}")),
+                leading: Radio<String>(
+                    value: keys[index],
+                    groupValue: selectedCar,
+                    onChanged: (value) {
+                      selectedCar = value!;
+                      setState(() {});
+                    }),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   IconButton(
-                    onPressed: () async {
-                      final car = await _createCar(id: int.parse(keys[index]));
-                      if (car != null) {
-                        car["car_id"] = int.parse(keys[index]);
-                        SocketConnection.channel.add(
-                            jsonEncode({'type': typeUpdateCar, 'data': car}));
-                      }
-                    },
-                    icon: const Icon(Icons.edit),
-                  ),
+                      onPressed: () async {
+                        final car =
+                            await _createCar(id: int.parse(keys[index]));
+                        if (car != null) {
+                          car["car_id"] = int.parse(keys[index]);
+                          SocketConnection.channel.add(
+                              jsonEncode({'type': typeUpdateCar, 'data': car}));
+                        }
+                      },
+                      icon: const Icon(Icons.edit)),
                   IconButton(
                     onPressed: () async {
                       bool? reply = await showDialog(
                           context: context,
                           builder: (context) {
                             return AlertDialog(
-                              title: const Text('Really delete car?'),
-                              content:
-                                  const Text('This action cannot be undone'),
-                              actions: [
-                                TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context, true);
-                                    },
-                                    child: const Text('Yes')),
-                                TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context, false);
-                                    },
-                                    child: const Text('No'))
-                              ],
-                            );
+                                title: const Text('Really delete car?'),
+                                content:
+                                    const Text('This action cannot be undone'),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context, true);
+                                      },
+                                      child: const Text('Yes')),
+                                  TextButton(
+                                      onPressed: () {
+                                        Navigator.pop(context, false);
+                                      },
+                                      child: const Text('No'))
+                                ]);
                           });
                       if (reply ?? false) {
                         SocketConnection.channel.add(jsonEncode(
@@ -503,10 +476,8 @@ class _DriverPageState extends State<DriverPage>
                       }
                     },
                     icon: const Icon(Icons.delete),
-                  ),
-                ],
-              ),
-            );
+                  )
+                ]));
           },
           separatorBuilder: (context, index) => const Divider(),
           itemCount: cars.length),
@@ -538,313 +509,319 @@ class _DriverPageState extends State<DriverPage>
           }
           final formKey = GlobalKey<FormState>();
           return Center(
-            child: Stack(alignment: const FractionalOffset(0.5, 0), children: [
-              Column(
+              child:
+                  Stack(alignment: const FractionalOffset(0.5, 0), children: [
+            Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Container(color: Colors.transparent, height: 80, width: 160),
                   Container(
-                    color: Colors.transparent,
-                    height: 80,
-                    width: 160,
-                  ),
-                  Container(
-                    width: min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
-                    clipBehavior: Clip.hardEdge,
-                    decoration:
-                        BoxDecoration(borderRadius: BorderRadius.circular(24)),
-                    child: Material(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            const Padding(
-                                padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
-                            Text(
-                              car != null ? 'Edit car' : 'Create a car',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            Form(
-                              key: formKey,
+                      width:
+                          min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24)),
+                      child: Material(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          child: Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
                               child: Column(
-                                children: [
-                                  Autocomplete<String>(
-                                    fieldViewBuilder: (context,
-                                        textEditingController,
-                                        focusNode,
-                                        onFieldSubmitted) {
-                                      if (car != null) {
-                                        textEditingController.text =
-                                            car['model'];
-                                      }
-                                      return TextFormField(
-                                        controller: textEditingController,
-                                        focusNode: focusNode,
-                                        decoration: const InputDecoration(
-                                            hintText: "Car model"),
-                                        validator: (value) => !suggestions
-                                                .contains(value)
-                                            ? "Please select a valid car model"
-                                            : null,
-                                        onEditingComplete: () {
-                                          _modelNameController.text =
-                                              textEditingController.text;
-                                        },
-                                      );
-                                    },
-                                    optionsBuilder: ((textEditingValue) {
-                                      if (textEditingValue.text == '') {
-                                        return const Iterable<String>.empty();
-                                      }
-                                      return suggestions.where((element) =>
-                                          removeDiacritics(
-                                                  element.toLowerCase())
-                                              .contains(textEditingValue.text
-                                                  .toLowerCase()));
-                                    }),
-                                    onSelected: (option) {
-                                      _modelNameController.text = option;
-                                    },
-                                  ),
-                                  TextFormField(
-                                      controller: _licensePlateController,
-                                      decoration: const InputDecoration(
-                                          hintText: "License plate"),
-                                      validator: (value) => value == null ||
-                                              !licensePlateRegex
-                                                  .hasMatch(value.toUpperCase())
-                                          ? "Please enter a valid license plate number"
-                                          : null),
-                                ],
-                              ),
-                            ),
-                            const Padding(padding: EdgeInsets.all(8.0)),
-                            Row(
-                              children: [
-                                const Text("Available seats"),
-                                const Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 10.0)),
-                                ValueListenableBuilder(
-                                    valueListenable: seats,
-                                    builder: (context, value, child) {
-                                      return IconButton(
-                                        onPressed: value > 1
-                                            ? () => --seats.value
-                                            : null,
-                                        icon: const Icon(Icons.remove),
-                                        iconSize: 30,
-                                      );
-                                    }),
-                                const Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 6)),
-                                ValueListenableBuilder(
-                                    valueListenable: seats,
-                                    builder: (context, value, child) {
-                                      return Text(
-                                        '$value',
-                                        style: const TextStyle(fontSize: 16),
-                                      );
-                                    }),
-                                const Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 6)),
-                                ValueListenableBuilder(
-                                    valueListenable: seats,
-                                    builder: (context, value, child) {
-                                      return IconButton(
-                                        onPressed: value < 3
-                                            ? () => ++seats.value
-                                            : null,
-                                        icon: const Icon(Icons.add),
-                                        iconSize: 30,
-                                      );
-                                    }),
-                              ],
-                            ),
-                            const Padding(padding: EdgeInsets.all(8.0)),
-                            Row(
-                              children: [
-                                const Text("Choose color"),
-                                const Padding(
-                                    padding:
-                                        EdgeInsets.symmetric(horizontal: 15.0)),
-                                IconButton(
-                                  onPressed: () async {
-                                    Color? reply = await showDialog(
-                                        context: context,
-                                        builder: (context) {
-                                          ValueNotifier<Color> newColor =
-                                              finalColor.value != null
-                                                  ? ValueNotifier(
-                                                      finalColor.value!)
-                                                  : ValueNotifier(
-                                                      Colors.red.shade900);
-                                          return Dialog(
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                SizedBox(
-                                                  height: 300,
-                                                  width: 300,
-                                                  child: StatefulBuilder(
-                                                      builder:
-                                                          (context, setState) {
-                                                    return ColorWheelPicker(
-                                                      wheelWidth: 30,
-                                                      color: newColor.value,
-                                                      onChanged: (color) {
-                                                        newColor.value = color;
-                                                        setState(() {});
-                                                      },
-                                                      onWheel: (wheel) {},
-                                                    );
-                                                  }),
-                                                ),
-                                                const Padding(
-                                                    padding:
-                                                        EdgeInsets.all(8.0)),
-                                                ValueListenableBuilder(
-                                                    valueListenable: newColor,
-                                                    builder: (context, value,
-                                                        child) {
-                                                      return ColorIndicator(
-                                                        height: 60,
-                                                        width: 60,
-                                                        borderColor:
-                                                            Colors.black45,
-                                                        hasBorder: true,
-                                                        color: value,
-                                                      );
-                                                    }),
-                                                const Padding(
-                                                    padding:
-                                                        EdgeInsets.all(10.0)),
-                                                Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.end,
-                                                  children: [
-                                                    ValueListenableBuilder(
-                                                        valueListenable:
-                                                            newColor,
-                                                        builder: (context,
-                                                            value, child) {
-                                                          return TextButton(
-                                                              onPressed: () =>
-                                                                  Navigator.pop(
-                                                                      context,
-                                                                      value),
-                                                              child: const Text(
-                                                                  "Select"));
-                                                        }),
-                                                    const Padding(
-                                                        padding: EdgeInsets
-                                                            .symmetric(
-                                                                horizontal:
-                                                                    8.0)),
-                                                    TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                                context, null),
-                                                        child: const Text(
-                                                            "Cancel"))
-                                                  ],
-                                                )
-                                              ],
-                                            ),
-                                          );
-                                        });
-                                    if (reply != null) {
-                                      finalColor.value = reply;
-                                    }
-                                  },
-                                  icon: ValueListenableBuilder(
-                                      valueListenable: finalColor,
-                                      builder: (context, value, child) {
-                                        if (value == null) {
-                                          return const Icon(
-                                            Icons.palette,
-                                            size: 30,
-                                          );
-                                        }
-                                        return ColorIndicator(
-                                          borderColor: Colors.black45,
-                                          hasBorder: true,
-                                          color: value,
-                                        );
-                                      }),
-                                ),
-                                ValueListenableBuilder(
-                                    valueListenable: finalColor,
-                                    builder: (context, value, child) {
-                                      return Visibility(
-                                        visible: value != null,
-                                        child: IconButton(
-                                            onPressed: () =>
-                                                finalColor.value = null,
-                                            icon: const Icon(Icons.clear)),
-                                      );
-                                    })
-                              ],
-                            ),
-                            const Padding(padding: EdgeInsets.all(8)),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                ValueListenableBuilder(
-                                    valueListenable: selectedImage,
-                                    builder: (context, value, child) {
-                                      return TextButton(
+                                  mainAxisSize: MainAxisSize.min,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    const Padding(
+                                        padding:
+                                            EdgeInsets.fromLTRB(24, 40, 24, 0)),
+                                    Text(
+                                        car != null
+                                            ? 'Edit car'
+                                            : 'Create a car',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge),
+                                    Form(
+                                        key: formKey,
+                                        child: Column(children: [
+                                          Autocomplete<String>(fieldViewBuilder:
+                                              (context, textEditingController,
+                                                  focusNode, onFieldSubmitted) {
+                                            if (car != null) {
+                                              textEditingController.text =
+                                                  car['model'];
+                                            }
+                                            return TextFormField(
+                                                controller:
+                                                    textEditingController,
+                                                focusNode: focusNode,
+                                                decoration:
+                                                    const InputDecoration(
+                                                        hintText: "Car model"),
+                                                validator: (value) => !suggestions
+                                                        .contains(value)
+                                                    ? "Please select a valid car model"
+                                                    : null,
+                                                onEditingComplete: () {
+                                                  _modelNameController.text =
+                                                      textEditingController
+                                                          .text;
+                                                });
+                                          }, optionsBuilder:
+                                              ((textEditingValue) {
+                                            if (textEditingValue.text == '') {
+                                              return const Iterable<
+                                                  String>.empty();
+                                            }
+                                            return suggestions.where(
+                                                (element) => removeDiacritics(
+                                                        element.toLowerCase())
+                                                    .contains(textEditingValue
+                                                        .text
+                                                        .toLowerCase()));
+                                          }), onSelected: (option) {
+                                            _modelNameController.text = option;
+                                          }),
+                                          TextFormField(
+                                              controller:
+                                                  _licensePlateController,
+                                              decoration: const InputDecoration(
+                                                  hintText: "License plate"),
+                                              validator: (value) => value ==
+                                                          null ||
+                                                      !licensePlateRegex
+                                                          .hasMatch(value
+                                                              .toUpperCase())
+                                                  ? "Please enter a valid license plate number"
+                                                  : null)
+                                        ])),
+                                    const Padding(padding: EdgeInsets.all(8.0)),
+                                    Row(children: [
+                                      const Text("Available seats"),
+                                      const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 10.0)),
+                                      ValueListenableBuilder(
+                                          valueListenable: seats,
+                                          builder: (context, value, child) {
+                                            return IconButton(
+                                                onPressed: value > 1
+                                                    ? () => --seats.value
+                                                    : null,
+                                                icon: const Icon(Icons.remove),
+                                                iconSize: 30);
+                                          }),
+                                      const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 6)),
+                                      ValueListenableBuilder(
+                                          valueListenable: seats,
+                                          builder: (context, value, child) {
+                                            return Text('$value',
+                                                style: const TextStyle(
+                                                    fontSize: 16));
+                                          }),
+                                      const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 6)),
+                                      ValueListenableBuilder(
+                                          valueListenable: seats,
+                                          builder: (context, value, child) {
+                                            return IconButton(
+                                                onPressed: value < 3
+                                                    ? () => ++seats.value
+                                                    : null,
+                                                icon: const Icon(Icons.add),
+                                                iconSize: 30);
+                                          })
+                                    ]),
+                                    const Padding(padding: EdgeInsets.all(8.0)),
+                                    Row(children: [
+                                      const Text("Choose color"),
+                                      const Padding(
+                                          padding: EdgeInsets.symmetric(
+                                              horizontal: 15.0)),
+                                      IconButton(
                                           onPressed: () async {
-                                            if (formKey.currentState!
-                                                .validate()) {
-                                              String? imageName;
-
-                                              if (value.imagePath != null &&
-                                                  value.mimeType != null) {
-                                                imageName = await uploadImage(
-                                                    TypeOfImage.cars,
-                                                    value.imagePath!,
-                                                    value.mimeType!);
-                                              }
-                                              final modelName =
-                                                  _modelNameController.text;
-                                              final licensePlate =
-                                                  normalizeLicensePlate(
-                                                      _licensePlateController
-                                                          .text);
-                                              if (!mounted) return;
-                                              Navigator.pop(context, {
-                                                "model": modelName,
-                                                "license": licensePlate,
-                                                "seats": seats.value,
-                                                "picture": imageName ??
-                                                    car?['picture'],
-                                                "color": finalColor.value?.value
-                                                    .toString(),
-                                              });
+                                            Color? reply = await showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  ValueNotifier<Color>
+                                                      newColor =
+                                                      finalColor.value != null
+                                                          ? ValueNotifier(
+                                                              finalColor.value!)
+                                                          : ValueNotifier(Colors
+                                                              .red.shade900);
+                                                  return Dialog(
+                                                      child: Column(
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
+                                                          children: [
+                                                        SizedBox(
+                                                            height: 300,
+                                                            width: 300,
+                                                            child: StatefulBuilder(
+                                                                builder: (context,
+                                                                    setState) {
+                                                              return ColorWheelPicker(
+                                                                  wheelWidth:
+                                                                      30,
+                                                                  color: newColor
+                                                                      .value,
+                                                                  onChanged:
+                                                                      (color) {
+                                                                    setState(() =>
+                                                                        newColor.value =
+                                                                            color);
+                                                                  },
+                                                                  onWheel:
+                                                                      (wheel) {});
+                                                            })),
+                                                        const Padding(
+                                                            padding:
+                                                                EdgeInsets.all(
+                                                                    8.0)),
+                                                        ValueListenableBuilder(
+                                                            valueListenable:
+                                                                newColor,
+                                                            builder: (context,
+                                                                value, child) {
+                                                              return ColorIndicator(
+                                                                  height: 60,
+                                                                  width: 60,
+                                                                  borderColor:
+                                                                      Colors
+                                                                          .black45,
+                                                                  hasBorder:
+                                                                      true,
+                                                                  color: value);
+                                                            }),
+                                                        const Padding(
+                                                            padding:
+                                                                EdgeInsets.all(
+                                                                    10.0)),
+                                                        Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .end,
+                                                            children: [
+                                                              ValueListenableBuilder(
+                                                                  valueListenable:
+                                                                      newColor,
+                                                                  builder:
+                                                                      (context,
+                                                                          value,
+                                                                          child) {
+                                                                    return TextButton(
+                                                                        onPressed: () => Navigator.pop(
+                                                                            context,
+                                                                            value),
+                                                                        child: const Text(
+                                                                            "Select"));
+                                                                  }),
+                                                              const Padding(
+                                                                  padding: EdgeInsets
+                                                                      .symmetric(
+                                                                          horizontal:
+                                                                              8.0)),
+                                                              TextButton(
+                                                                  onPressed: () =>
+                                                                      Navigator.pop(
+                                                                          context,
+                                                                          null),
+                                                                  child: const Text(
+                                                                      "Cancel"))
+                                                            ])
+                                                      ]));
+                                                });
+                                            if (reply != null) {
+                                              finalColor.value = reply;
                                             }
                                           },
-                                          child: const Text("Ok"));
-                                    }),
-                                TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text("Cancel")),
-                              ],
-                            ),
-                            const Padding(padding: EdgeInsets.all(5))
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
+                                          icon: ValueListenableBuilder(
+                                              valueListenable: finalColor,
+                                              builder: (context, value, child) {
+                                                if (value == null) {
+                                                  return const Icon(
+                                                      Icons.palette,
+                                                      size: 30);
+                                                }
+                                                return ColorIndicator(
+                                                    borderColor: Colors.black45,
+                                                    hasBorder: true,
+                                                    color: value);
+                                              })),
+                                      ValueListenableBuilder(
+                                          valueListenable: finalColor,
+                                          builder: (context, value, child) {
+                                            return Visibility(
+                                                visible: value != null,
+                                                child: IconButton(
+                                                    onPressed: () =>
+                                                        finalColor.value = null,
+                                                    icon: const Icon(
+                                                        Icons.clear)));
+                                          })
+                                    ]),
+                                    const Padding(padding: EdgeInsets.all(8)),
+                                    Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.end,
+                                        children: [
+                                          ValueListenableBuilder(
+                                              valueListenable: selectedImage,
+                                              builder: (context, value, child) {
+                                                return TextButton(
+                                                    onPressed: () async {
+                                                      if (formKey.currentState!
+                                                          .validate()) {
+                                                        String? imageName;
+                                                        if (value.imagePath !=
+                                                                null &&
+                                                            value.mimeType !=
+                                                                null) {
+                                                          imageName =
+                                                              await uploadImage(
+                                                                  TypeOfImage
+                                                                      .cars,
+                                                                  value
+                                                                      .imagePath!,
+                                                                  value
+                                                                      .mimeType!);
+                                                        }
+                                                        final modelName =
+                                                            _modelNameController
+                                                                .text;
+                                                        final licensePlate =
+                                                            normalizeLicensePlate(
+                                                                _licensePlateController
+                                                                    .text);
+                                                        if (!mounted) return;
+                                                        Navigator.pop(context, {
+                                                          "model": modelName,
+                                                          "license":
+                                                              licensePlate,
+                                                          "seats": seats.value,
+                                                          "picture": imageName ??
+                                                              car?['picture'],
+                                                          "color": finalColor
+                                                              .value?.value
+                                                              .toString()
+                                                        });
+                                                      }
+                                                    },
+                                                    child: const Text("Ok"));
+                                              }),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                              child: const Text("Cancel"))
+                                        ]),
+                                    const Padding(padding: EdgeInsets.all(5))
+                                  ]))))
+                ]),
+            IconButton(
                 onPressed: () async {
                   final result = await pickImage(imageQuality: carImageQuality);
                   if (result == null || result.mimeType == null) return;
@@ -856,23 +833,20 @@ class _DriverPageState extends State<DriverPage>
                 },
                 iconSize: 40,
                 icon: CircleAvatar(
-                  radius: 70,
-                  child: ClipRRect(
-                      borderRadius: BorderRadius.circular(70),
-                      child: ValueListenableBuilder(
-                          valueListenable: selectedImage,
-                          builder: (context, value, child) {
-                            if (value.imagePath != null) {
-                              return Image.file(File(value.imagePath!));
-                            }
-                            return NetworkImageWithPlaceholder(
-                                typeOfImage: TypeOfImage.cars,
-                                imageUrl: car?['picture']);
-                          })),
-                ),
-              ),
-            ]),
-          );
+                    radius: 70,
+                    child: ClipRRect(
+                        borderRadius: BorderRadius.circular(70),
+                        child: ValueListenableBuilder(
+                            valueListenable: selectedImage,
+                            builder: (context, value, child) {
+                              if (value.imagePath != null) {
+                                return Image.file(File(value.imagePath!));
+                              }
+                              return NetworkImageWithPlaceholder(
+                                  typeOfImage: TypeOfImage.cars,
+                                  imageUrl: car?['picture']);
+                            }))))
+          ]));
         }).then((value) {
       _modelNameController.clear();
       _licensePlateController.clear();
@@ -885,78 +859,58 @@ class _DriverPageState extends State<DriverPage>
     if (!driving) {
       if (Provider.of<User>(context).cars.isEmpty) {
         children = [
-          const SizedBox(
-            height: 100,
-          ),
+          const SizedBox(height: 100),
           const Padding(
-            padding: EdgeInsets.all(8.0),
-            child: Text(
-              "Add a car to continue",
-              style: TextStyle(fontSize: 20),
-            ),
-          )
+              padding: EdgeInsets.all(8.0),
+              child:
+                  Text("Add a car to continue", style: TextStyle(fontSize: 20)))
         ];
       } else {
         children
-          ..add(
-            const SizedBox(
-              height: 10,
-            ),
-          )
+          ..add(const SizedBox(height: 10))
           ..add(const Padding(
               padding: EdgeInsets.all(8.0),
-              child: Text(
-                "Select car",
-                style: TextStyle(fontSize: 20),
-              )))
+              child: Text("Select car", style: TextStyle(fontSize: 20))))
           ..add(Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _createCarList(),
-          ));
+              padding: const EdgeInsets.all(8.0), child: _createCarList()));
       }
       children.add(Padding(
         padding: const EdgeInsets.all(8.0),
         child: ElevatedButton(
-          onPressed: Provider.of<User>(context).cars.length >= 3
-              ? null
-              : () async {
-                  final car = await _createCar();
-                  if (car != null) {
-                    SocketConnection.channel
-                        .add(jsonEncode({'type': typeAddCar, 'data': car}));
-                  }
-                },
-          style: ElevatedButton.styleFrom(
-              shape: const CircleBorder(),
-              backgroundColor: Colors.white,
-              padding: const EdgeInsets.all(8.0)),
-          child: const Icon(Icons.add),
-        ),
+            onPressed: Provider.of<User>(context).cars.length >= 3
+                ? null
+                : () async {
+                    final car = await _createCar();
+                    if (car != null) {
+                      SocketConnection.channel
+                          .add(jsonEncode({'type': typeAddCar, 'data': car}));
+                    }
+                  },
+            style: ElevatedButton.styleFrom(
+                shape: const CircleBorder(),
+                backgroundColor: Colors.white,
+                padding: const EdgeInsets.all(8.0)),
+            child: const Icon(Icons.add)),
       ));
-    }
-    if (driving) {
+    } else {
       if (!inRadius) {
         children.add(const Expanded(
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Text(
-                "The app will start looking for passengers once you get close to the bus stop",
-                style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ));
+            child: Center(
+                child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Text(
+                        "The app will start looking for passengers once you get close to the bus stop",
+                        style: TextStyle(
+                            fontSize: 25.0, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center)))));
       } else {
         return _createPassengersList();
       }
     }
     return Center(
-      child: Column(
-        children: children,
-      ),
-    );
+        child: Column(
+      children: children,
+    ));
   }
 
   Widget _buildFAB() {
@@ -987,28 +941,22 @@ class _DriverPageState extends State<DriverPage>
                   passengers = [];
                   SocketConnection.channel
                       .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
-                  setState(() {});
                 } else {
                   if (positionStream.isPaused) {
                     positionStream.resume();
                   }
                   driving = true;
                   _sendDriver();
-                  setState(() {});
                 }
+                setState(() {});
               }
             : null,
-        child: Icon(
-          !driving ? Icons.play_arrow_rounded : Icons.stop_rounded,
-          size: 50,
-        ));
+        child: Icon(!driving ? Icons.play_arrow_rounded : Icons.stop_rounded,
+            size: 50));
   }
 
   void _onPositionChange(Position? position) async {
-    if (position == null) {
-      debugPrint('Unknown position');
-      return;
-    }
+    if (position == null) return;
     coordinates = position;
     _sendDriver();
     if (arrivedAtBusStop && followDriver) {
@@ -1026,10 +974,8 @@ class _DriverPageState extends State<DriverPage>
       arrivedAtBusStop = true;
       showArrived = true;
       moveCamera(this, mapController, busStop, 15.5);
-      arrivedTimer = Timer(const Duration(seconds: 5), () {
-        showArrived = false;
-        setState(() {});
-      });
+      arrivedTimer = Timer(const Duration(seconds: 5),
+          () => setState(() => showArrived = false));
     }
     if (passengers.isNotEmpty &&
         Geolocator.distanceBetween(position.latitude, position.longitude,
@@ -1056,10 +1002,8 @@ class _DriverPageState extends State<DriverPage>
           'ratings': ratings
         }
       }));
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomePage()),
-      );
+      Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (context) => const WelcomePage()));
     }
     setState(() {});
   }
@@ -1100,34 +1044,30 @@ class _DriverPageState extends State<DriverPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      appBar: AppBar(
-          title: const Text('Driver'),
-          leading: Visibility(
-            visible: passengers.isNotEmpty,
-            child: SwitchUserButton(
-                context: context,
-                skip: passengers.isEmpty || !inRadius,
-                typeOfUser: TypeOfUser.driver,
-                back: true),
-          ),
-          actions: [
-            SwitchUserButton(
-              context: context,
-              skip: passengers.isEmpty || !inRadius,
-              typeOfUser: TypeOfUser.driver,
-            ),
-            const UserImageButton(),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
-          ]),
-      body: _buildDriverScreen(),
-      floatingActionButton: Visibility(
-        visible: selectedCar != null && passengers.isEmpty,
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Align(alignment: Alignment.bottomCenter, child: _buildFAB()),
-        ),
-      ),
-    );
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        appBar: AppBar(
+            title: const Text('Driver'),
+            leading: Visibility(
+                visible: passengers.isNotEmpty,
+                child: SwitchUserButton(
+                    context: context,
+                    skip: passengers.isEmpty || !inRadius,
+                    typeOfUser: TypeOfUser.driver,
+                    back: true)),
+            actions: [
+              SwitchUserButton(
+                  context: context,
+                  skip: passengers.isEmpty || !inRadius,
+                  typeOfUser: TypeOfUser.driver),
+              const UserImageButton(),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
+            ]),
+        body: _buildDriverScreen(),
+        floatingActionButton: Visibility(
+            visible: selectedCar != null && passengers.isEmpty,
+            child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Align(
+                    alignment: Alignment.bottomCenter, child: _buildFAB()))));
   }
 }

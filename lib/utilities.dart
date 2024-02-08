@@ -105,39 +105,27 @@ Future<String?> uploadImage(
   return null;
 }
 
-Future showProfile(
-    {required BuildContext context, required bool showSignout}) async {
-  await showDialog(
-    context: context,
-    builder: (context) {
-      return UserProfileCard(showSignout: showSignout);
-    },
-  );
-}
-
 Future<bool> signOutAlert(
     {required BuildContext context, required Widget content}) async {
   bool? reply = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Really sign out?'),
-      content: content,
-      actions: [
-        TextButton(
-            onPressed: () {
-              SecureStorage.deleteAllSecure();
-              SocketConnection.channel
-                  .add(jsonEncode({'type': typeSignout, 'data': {}}));
-              context.read<User>().setUser();
-              Navigator.pop(context, true);
-            },
-            child: const Text('Yes')),
-        TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'))
-      ],
-    ),
-  );
+      context: context,
+      builder: (context) => AlertDialog(
+              title: const Text('Really sign out?'),
+              content: content,
+              actions: [
+                TextButton(
+                    onPressed: () {
+                      SecureStorage.deleteAllSecure();
+                      SocketConnection.channel
+                          .add(jsonEncode({'type': typeSignout, 'data': {}}));
+                      context.read<User>().setUser();
+                      Navigator.pop(context, true);
+                    },
+                    child: const Text('Yes')),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'))
+              ]));
   return reply ?? false;
 }
 
@@ -152,76 +140,63 @@ Future<List<double>?> arrivedDialog(
       (index) => ValueListenableBuilder(
           valueListenable: ratings[index],
           builder: (context, value, child) {
-            return Row(
-              children: [
-                RatingBar.builder(
-                    itemSize: 36,
-                    glow: false,
-                    initialRating: value,
-                    minRating: 1,
-                    itemBuilder: (context, index) => const Icon(
-                          Icons.star_rounded,
-                          color: Colors.amber,
-                        ),
-                    onRatingUpdate: (rating) {
-                      ratings[index].value = rating;
-                    }),
-                Visibility(
+            return Row(children: [
+              RatingBar.builder(
+                  itemSize: 36,
+                  glow: false,
+                  initialRating: value,
+                  minRating: 1,
+                  itemBuilder: (context, index) =>
+                      const Icon(Icons.star_rounded, color: Colors.amber),
+                  onRatingUpdate: (rating) {
+                    ratings[index].value = rating;
+                  }),
+              Visibility(
                   visible: value != 0,
                   maintainSize: true,
                   maintainAnimation: true,
                   maintainState: true,
                   child: IconButton(
-                      onPressed: () {
-                        ratings[index].value = 0;
-                      },
+                      onPressed: () => ratings[index].value = 0,
                       iconSize: 30,
-                      icon: const Icon(Icons.close)),
-                ),
-              ],
-            );
+                      icon: const Icon(Icons.close)))
+            ]);
           }));
   await showDialog<List<double>>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return Dialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Padding(padding: EdgeInsets.symmetric(vertical: 14.0)),
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  "You have reached your destination!",
-                  style: TextStyle(fontSize: 26.0, fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text("You have reached your destination!",
+                      style: TextStyle(
+                          fontSize: 26.0, fontWeight: FontWeight.w500),
+                      textAlign: TextAlign.center)),
               const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  "Please rate your experience with the ${typeOfUser.name}${users.length == 1 ? '' : 's'} (optional)",
-                  style: const TextStyle(fontSize: 16.0),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    "Please rate your experience with the ${typeOfUser.name}${users.length == 1 ? '' : 's'} (optional)",
+                    style: const TextStyle(fontSize: 16.0),
+                    textAlign: TextAlign.center,
+                  )),
               const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
               ListView.separated(
                 shrinkWrap: true,
                 itemCount: users.length,
                 itemBuilder: (context, index) {
                   return ListTile(
-                    title: Text("${users[index]['name']}"),
-                    leading: UserAvatar(
-                      url: users[index]['picture'],
-                      size: 26.0,
-                    ),
-                    subtitle: ratingBars[index],
-                  );
+                      title: Text("${users[index]['name']}"),
+                      leading: UserAvatar(
+                        url: users[index]['picture'],
+                        size: 26.0,
+                      ),
+                      subtitle: ratingBars[index]);
                 },
                 separatorBuilder: (context, index) =>
                     const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
@@ -229,19 +204,12 @@ Future<List<double>?> arrivedDialog(
               Align(
                   alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12.0),
-                    child: TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          "Submit",
-                          style: TextStyle(fontSize: 18.0),
-                        )),
-                  )),
-            ],
-          ),
-        );
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Submit",
+                              style: TextStyle(fontSize: 18.0)))))
+            ]));
       });
   final ratingsList = ratings.map((e) => e.value).toList();
   if (ratingsList.any((element) => element != 0)) return null;
@@ -286,18 +254,17 @@ Future<bool> stopDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(
-              'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?'),
-          content: const Text('The current ride will be cancelled'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Yes')),
-            TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('No'))
-          ],
-        );
+            title: Text(
+                'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?'),
+            content: const Text('The current ride will be cancelled'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Yes')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('No'))
+            ]);
       });
   return reply ?? false;
 }
@@ -310,20 +277,17 @@ List<Marker> usersToMarkers(List<Map<String, dynamic>> users) {
           point:
               LatLng(user["coords"]["latitude"], user["coords"]["longitude"]),
           child: Stack(children: [
+            Container(decoration: const BoxDecoration(shape: BoxShape.circle)),
             Container(
-              decoration: const BoxDecoration(shape: BoxShape.circle),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: user['car'] != null && user['car']['color'] != null
-                      ? Color(int.parse(user['car']['color']))
-                      : colors[int.parse(user["id"][user["id"].length - 1])],
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(spreadRadius: 0.1, blurRadius: 3)
-                  ]),
-            ),
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: user['car'] != null && user['car']['color'] != null
+                        ? Color(int.parse(user['car']['color']))
+                        : colors[int.parse(user["id"][user["id"].length - 1])],
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: const [
+                  BoxShadow(spreadRadius: 0.1, blurRadius: 3)
+                ]))
           ])))
       .toList();
 }
