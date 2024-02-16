@@ -42,7 +42,7 @@ class SocketConnection {
 
   static Future<WebSocket?> connect() async {
     try {
-      return await WebSocket.connect("ws://$apiHost")
+      return await WebSocket.connect(apiHost)
           .timeout(const Duration(seconds: 5));
     } catch (error) {
       ++tries;

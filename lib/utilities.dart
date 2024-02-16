@@ -95,7 +95,7 @@ Future<String?> uploadImage(
     TypeOfImage typeOfImage, String path, String fileType) async {
   if (fileType != "image/jpeg" && fileType != "image/png") return null;
   var request = http.MultipartRequest(
-      'POST', Uri.parse('http://$mediaHost/images/${typeOfImage.name}'));
+      'POST', Uri.parse('$mediaHost/images/${typeOfImage.name}'));
   request.files.add(await http.MultipartFile.fromPath('file', path,
       contentType: MediaType('image', fileType.split('/')[1])));
   final response = await http.Response.fromStream(await request.send());
@@ -216,46 +216,16 @@ Future<List<double>?> arrivedDialog(
   return ratingsList;
 }
 
-void moveCamera(TickerProvider tickerProvider, MapController mapController,
-    LatLng dest, double zoom) {
-  final camera = mapController.camera;
-  final latTween =
-      Tween<double>(begin: camera.center.latitude, end: dest.latitude);
-  final lngTween =
-      Tween<double>(begin: camera.center.longitude, end: dest.longitude);
-  final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
-  final controller = AnimationController(
-      vsync: tickerProvider, duration: const Duration(milliseconds: 1000));
-  final Animation<double> animation =
-      CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
-  controller.addListener(() {
-    // if (!waitingForPassengers) {
-    //   controller.dispose();
-    //   return;
-    // }
-    mapController.move(
-        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
-        zoomTween.evaluate(animation));
-  });
-  animation.addStatusListener((status) {
-    if (status == AnimationStatus.completed) {
-      controller.dispose();
-    } else if (status == AnimationStatus.dismissed) {
-      controller.dispose();
-    }
-  });
-  controller.forward();
-}
-
 Future<bool> stopDialog(
-    BuildContext context, bool skip, TypeOfUser typeOfUser) async {
+    BuildContext context, bool skip, bool back, TypeOfUser typeOfUser) async {
   if (skip) return Future.value(true);
   bool? reply = await showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-            title: Text(
-                'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?'),
+            title: Text(back
+                ? 'Really stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}'
+                : 'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?'),
             content: const Text('The current ride will be cancelled'),
             actions: [
               TextButton(

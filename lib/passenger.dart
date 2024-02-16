@@ -24,11 +24,12 @@ class PassengerPage extends StatefulWidget {
 }
 
 class _PassengerPageState extends State<PassengerPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Map<String, dynamic>? driver;
   late StreamSubscription<Position> positionStream;
   ListQueue<LatLng> driverPositions = ListQueue();
   final mapController = MapController();
+  final moveCameraController = MoveCameraController();
   Position? coordinates;
   bool inRadius = false;
   bool requestTimeout = false;
@@ -54,7 +55,7 @@ class _PassengerPageState extends State<PassengerPage>
       case typeGetDriver:
         if (driver == null) return;
         driver = data;
-        if (driver == null) {
+        if (data.isEmpty) {
           HapticFeedback.heavyImpact();
           driver = null;
           driverArrived = false;
@@ -79,9 +80,7 @@ class _PassengerPageState extends State<PassengerPage>
               return;
             }
             if (followDriver) {
-              moveCamera(
-                  this,
-                  mapController,
+              moveCameraController.moveCamera(
                   LatLng(driver!['coords']['latitude'],
                       driver!['coords']['longitude']),
                   mapController.camera.zoom);
@@ -96,7 +95,7 @@ class _PassengerPageState extends State<PassengerPage>
                       busStop.latitude, busStop.longitude) <
                   arrivalRange &&
               !driverArrived) {
-            moveCamera(this, mapController, pos, 15.5);
+            moveCameraController.moveCamera(pos, 15.5);
             driverArrived = true;
             showArrived = true;
             arrivedTimer = Timer(const Duration(seconds: 5), () {
@@ -123,19 +122,20 @@ class _PassengerPageState extends State<PassengerPage>
       case typeArrivedDestination:
         if (driver == null) return;
         HapticFeedback.heavyImpact();
-        moveCamera(this, mapController,
+        moveCameraController.moveCamera(
             LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
         final List<double>? rating = await arrivedDialog(
             context: context, users: [driver!], typeOfUser: TypeOfUser.driver);
-        if (rating == null) return;
+        if (rating != null) {
+          SocketConnection.channel.add(jsonEncode({
+            'type': typeSendRatings,
+            'data': {
+              'users': [driver!['id']],
+              'ratings': rating
+            }
+          }));
+        }
         if (!mounted) return;
-        SocketConnection.channel.add(jsonEncode({
-          'type': typeSendRatings,
-          'data': {
-            'users': [driver!['id']],
-            'ratings': rating
-          }
-        }));
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const WelcomePage()),
@@ -284,9 +284,7 @@ class _PassengerPageState extends State<PassengerPage>
       child: ListTile(
         onTap: () {
           followDriver = true;
-          moveCamera(
-              this,
-              mapController,
+          moveCameraController.moveCamera(
               LatLng(
                   driver['coords']['latitude'], driver['coords']['longitude']),
               16);
@@ -308,7 +306,7 @@ class _PassengerPageState extends State<PassengerPage>
                 child: driver['picture'] != null
                     ? CachedNetworkImage(
                         imageUrl:
-                            'http://$mediaHost/images/users/${driver['picture']}',
+                            '$mediaHost/images/users/${driver['picture']}',
                         placeholder: (context, url) =>
                             Image.asset("assets/images/blank_profile.png"),
                         errorWidget: (context, url, error) =>
@@ -386,7 +384,7 @@ class _PassengerPageState extends State<PassengerPage>
         padding: const EdgeInsets.all(8.0),
         child: FittedBox(
           child: CachedNetworkImage(
-            imageUrl: 'http://$mediaHost/images/users/${driver!['picture']}',
+            imageUrl: '$mediaHost/images/users/${driver!['picture']}',
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
@@ -398,8 +396,7 @@ class _PassengerPageState extends State<PassengerPage>
         padding: const EdgeInsets.all(8.0),
         child: FittedBox(
           child: CachedNetworkImage(
-            imageUrl:
-                'http://$mediaHost/images/cars/${driver!['car']['picture']}',
+            imageUrl: '$mediaHost/images/cars/${driver!['car']['picture']}',
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
@@ -470,18 +467,19 @@ class _PassengerPageState extends State<PassengerPage>
         Expanded(
             flex: 1,
             child: CustomMap(
-                typeOfUser: TypeOfUser.passenger,
-                mapController: mapController,
-                markers: usersToMarkers([if (driver != null) driver!]),
-                coordinates: coordinates,
-                showArrived: showArrived,
-                onMove: () => setState(() => followDriver = false),
-                onPressGPS: () => moveCamera(
-                    this,
-                    mapController,
-                    LatLng(coordinates!.latitude, coordinates!.longitude),
-                    mapController.camera.zoom),
-                centerGPS: true)),
+              typeOfUser: TypeOfUser.passenger,
+              mapController: mapController,
+              markers: usersToMarkers([if (driver != null) driver!]),
+              coordinates: coordinates,
+              showArrived: showArrived,
+              onMove: () => setState(() => followDriver = false),
+              moveCameraController: moveCameraController,
+              onPressGPS: () => moveCameraController.moveCamera(
+                  LatLng(coordinates!.latitude, coordinates!.longitude),
+                  mapController.camera.zoom),
+              centerGPS: true,
+              polylinePoints: driverPositions.toList(),
+            )),
         Container(
             color: Colors.white,
             child: Column(children: [

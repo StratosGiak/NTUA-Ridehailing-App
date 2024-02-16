@@ -28,8 +28,7 @@ class DriverPage extends StatefulWidget {
   State<DriverPage> createState() => _DriverPageState();
 }
 
-class _DriverPageState extends State<DriverPage>
-    with SingleTickerProviderStateMixin {
+class _DriverPageState extends State<DriverPage> {
   List<Map<String, dynamic>> passengers = [];
   final Stream _getPassengersStream =
       Stream.periodic(const Duration(seconds: 2), (int count) {});
@@ -38,6 +37,7 @@ class _DriverPageState extends State<DriverPage>
   final _modelNameController = TextEditingController();
   final _licensePlateController = TextEditingController();
   final mapController = MapController();
+  final moveCameraController = MoveCameraController();
   String? selectedCar;
   bool inRadius = false;
   bool driving = false;
@@ -260,7 +260,7 @@ class _DriverPageState extends State<DriverPage>
                       child: FittedBox(
                           child: CachedNetworkImage(
                               imageUrl:
-                                  'http://$mediaHost/images/users/${passengers[index]['picture']}',
+                                  '$mediaHost/images/users/${passengers[index]['picture']}',
                               placeholder: (context, url) =>
                                   const CircularProgressIndicator(),
                               errorWidget: (context, url, error) =>
@@ -284,16 +284,15 @@ class _DriverPageState extends State<DriverPage>
         Expanded(
             flex: 1,
             child: CustomMap(
-                typeOfUser: TypeOfUser.passenger,
+                typeOfUser: TypeOfUser.driver,
                 mapController: mapController,
                 markers: usersToMarkers(passengers),
                 coordinates: coordinates,
                 showArrived: showArrived,
                 onMove: () => setState(() => followDriver = false),
+                moveCameraController: moveCameraController,
                 onPressGPS: () {
-                  moveCamera(
-                      this,
-                      mapController,
+                  moveCameraController.moveCamera(
                       LatLng(coordinates!.latitude, coordinates!.longitude),
                       mapController.camera.zoom);
                   setState(() => followDriver = true);
@@ -311,9 +310,7 @@ class _DriverPageState extends State<DriverPage>
                   shrinkWrap: true,
                   itemBuilder: (context, index) {
                     return ListTile(
-                        onTap: () => moveCamera(
-                            this,
-                            mapController,
+                        onTap: () => moveCameraController.moveCamera(
                             LatLng(passengers[index]["coords"]["latitude"],
                                 passengers[index]["coords"]["longitude"]),
                             15.5),
@@ -327,7 +324,7 @@ class _DriverPageState extends State<DriverPage>
                                     child: passengers[index]['picture'] != null
                                         ? CachedNetworkImage(
                                             imageUrl:
-                                                "http://$mediaHost/images/users/${passengers[index]['picture']}",
+                                                "$mediaHost/images/users/${passengers[index]['picture']}",
                                             imageBuilder:
                                                 (context, imageProvider) =>
                                                     CircleAvatar(
@@ -960,9 +957,7 @@ class _DriverPageState extends State<DriverPage>
     coordinates = position;
     _sendDriver();
     if (arrivedAtBusStop && followDriver) {
-      moveCamera(
-          this,
-          mapController,
+      moveCameraController.moveCamera(
           LatLng(coordinates!.latitude, coordinates!.longitude),
           mapController.camera.zoom);
     }
@@ -973,7 +968,7 @@ class _DriverPageState extends State<DriverPage>
         !arrivedAtBusStop) {
       arrivedAtBusStop = true;
       showArrived = true;
-      moveCamera(this, mapController, busStop, 15.5);
+      moveCameraController.moveCamera(busStop, 15.5);
       arrivedTimer = Timer(const Duration(seconds: 5),
           () => setState(() => showArrived = false));
     }
@@ -985,7 +980,7 @@ class _DriverPageState extends State<DriverPage>
         !arrivedAtUniversity) {
       arrivedAtUniversity = true;
       _getPassengersStreamSubscription.cancel();
-      moveCamera(this, mapController,
+      moveCameraController.moveCamera(
           LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
       SocketConnection.channel
           .add(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
@@ -993,15 +988,16 @@ class _DriverPageState extends State<DriverPage>
           context: context,
           users: passengers,
           typeOfUser: TypeOfUser.passenger);
-      if (ratings == null) return;
+      if (ratings != null) {
+        SocketConnection.channel.add(jsonEncode({
+          'type': typeSendRatings,
+          'data': {
+            'users': passengers.map((e) => e['id']).toList(),
+            'ratings': ratings
+          }
+        }));
+      }
       if (!mounted) return;
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeSendRatings,
-        'data': {
-          'users': passengers.map((e) => e['id']).toList(),
-          'ratings': ratings
-        }
-      }));
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (context) => const WelcomePage()));
     }

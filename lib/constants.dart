@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-const apiHost = "ntua-ridehailing.dslab.ece.ntua.gr/api";
-const mediaHost = "ntua-ridehailing.dslab.ece.ntua.gr/media";
+const apiHost = "wss://ntua-ridehailing.dslab.ece.ntua.gr/api";
+const mediaHost = "https://ntua-ridehailing.dslab.ece.ntua.gr/media";
 String mapUrl = "";
 
 enum TypeOfUser { driver, passenger }
@@ -18,7 +18,7 @@ final mapBounds = LatLngBounds(
 const busStopRange = 100;
 const maxSeperation = 500;
 const arrivalRange = 100;
-const distanceFilter = 20;
+const distanceFilter = 10;
 
 const userImageQuality = 75;
 const carImageQuality = 75;

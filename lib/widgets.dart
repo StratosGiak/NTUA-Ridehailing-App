@@ -28,7 +28,7 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
   Widget build(context) {
     if (imageUrl != null) {
       return CachedNetworkImage(
-          imageUrl: 'http://$mediaHost/images/${typeOfImage.name}/$imageUrl',
+          imageUrl: '$mediaHost/images/${typeOfImage.name}/$imageUrl',
           placeholder: (_, __) => const CircularProgressIndicator(),
           errorWidget: (_, __, ___) => const Icon(Icons.error_outline));
     }
@@ -177,7 +177,7 @@ class UserAvatar extends StatelessWidget {
   Widget build(context) {
     return url != null
         ? CachedNetworkImage(
-            imageUrl: "http://$mediaHost/images/users/$url",
+            imageUrl: "$mediaHost/images/users/$url",
             imageBuilder: (context, imageProvider) => CircleAvatar(
               radius: size,
               backgroundImage: imageProvider,
@@ -258,7 +258,8 @@ class SwitchUserButton extends StatelessWidget {
   Widget build(context) {
     return IconButton(
         onPressed: () async {
-          if (await stopDialog(context, skip, typeOfUser) && context.mounted) {
+          if (await stopDialog(context, skip, back, typeOfUser) &&
+              context.mounted) {
             SocketConnection.channel.add(jsonEncode({
               'type': typeOfUser == TypeOfUser.driver
                   ? typeStopDriver
@@ -270,8 +271,8 @@ class SwitchUserButton extends StatelessWidget {
                 MaterialPageRoute(
                     builder: (context) =>
                         (typeOfUser == TypeOfUser.driver) ^ back
-                            ? const DriverPage()
-                            : const PassengerPage()));
+                            ? const PassengerPage()
+                            : const DriverPage()));
           }
         },
         iconSize: 26.0,
@@ -280,12 +281,18 @@ class SwitchUserButton extends StatelessWidget {
             : typeOfUser == TypeOfUser.driver
                 ? const Icon(Icons.directions_walk)
                 : const Icon(Icons.directions_car),
-        tooltip:
-            'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode');
+        tooltip: back
+            ? "Stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}"
+            : 'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode');
   }
 }
 
-class CustomMap extends StatelessWidget {
+class MoveCameraController {
+  void Function(LatLng, double) moveCamera =
+      (_, __) => debugPrint("Move camera controller error");
+}
+
+class CustomMap extends StatefulWidget {
   const CustomMap(
       {super.key,
       required this.typeOfUser,
@@ -296,6 +303,7 @@ class CustomMap extends StatelessWidget {
       required this.onMove,
       required this.onPressGPS,
       required this.centerGPS,
+      required this.moveCameraController,
       this.polylinePoints});
 
   final TypeOfUser typeOfUser;
@@ -307,12 +315,50 @@ class CustomMap extends StatelessWidget {
   final List<LatLng>? polylinePoints;
   final void Function() onMove;
   final void Function() onPressGPS;
+  final MoveCameraController moveCameraController;
+
+  @override
+  State<CustomMap> createState() => _CustomMapState();
+}
+
+class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
+  @override
+  void initState() {
+    super.initState();
+    widget.moveCameraController.moveCamera = moveCamera;
+  }
+
+  void moveCamera(LatLng dest, double zoom) {
+    final camera = widget.mapController.camera;
+    final latTween =
+        Tween<double>(begin: camera.center.latitude, end: dest.latitude);
+    final lngTween =
+        Tween<double>(begin: camera.center.longitude, end: dest.longitude);
+    final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
+    final controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1000));
+    final Animation<double> animation =
+        CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+    controller.addListener(() {
+      widget.mapController.move(
+          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+          zoomTween.evaluate(animation));
+    });
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+    controller.forward();
+  }
 
   @override
   Widget build(BuildContext context) {
     if (mapUrl.isEmpty) return const SizedBox.shrink();
     return FlutterMap(
-        mapController: mapController,
+        mapController: widget.mapController,
         options: MapOptions(
             initialCenter: const LatLng(37.9923, 23.7764),
             initialZoom: 14.5,
@@ -322,7 +368,7 @@ class CustomMap extends StatelessWidget {
             interactionOptions:
                 const InteractionOptions(flags: ~InteractiveFlag.rotate),
             onPositionChanged: (position, hasGesture) {
-              if (hasGesture) onMove();
+              if (hasGesture) widget.onMove();
             }),
         children: [
           TileLayer(
@@ -331,19 +377,19 @@ class CustomMap extends StatelessWidget {
               // tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
               //     const LatLng(37.97043, 23.80078)),
               evictErrorTileStrategy: EvictErrorTileStrategy.dispose),
-          if (polylinePoints != null)
+          if (widget.polylinePoints != null)
             PolylineLayer(polylines: [
               Polyline(
-                  points: polylinePoints!,
+                  points: widget.polylinePoints!,
                   color: Colors.lightBlue.shade400.withAlpha(200),
                   strokeWidth: 6)
             ]),
           MarkerLayer(
               markers: [
-                    if (coordinates != null)
+                    if (widget.coordinates != null)
                       Marker(
-                          point: LatLng(
-                              coordinates!.latitude, coordinates!.longitude),
+                          point: LatLng(widget.coordinates!.latitude,
+                              widget.coordinates!.longitude),
                           height: 14,
                           width: 14,
                           child: Container(
@@ -354,22 +400,24 @@ class CustomMap extends StatelessWidget {
                                 BoxShadow(spreadRadius: 0.1, blurRadius: 2)
                               ])))
                   ] +
-                  markers),
+                  widget.markers),
           const Padding(padding: EdgeInsets.all(30)),
           Align(
               alignment: const Alignment(1, -0.95),
               child: ElevatedButton(
-                  onPressed: coordinates != null ? onPressGPS : null,
+                  onPressed:
+                      widget.coordinates != null ? widget.onPressGPS : null,
                   style: ElevatedButton.styleFrom(
                       shape: const CircleBorder(),
                       backgroundColor: Colors.white,
                       padding: const EdgeInsets.all(5)),
-                  child: Icon(centerGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
+                  child: Icon(
+                      widget.centerGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
                       size: 30))),
           const SimpleAttributionWidget(
               source: Text("OpenStreetMap contributors")),
           Visibility(
-              visible: showArrived,
+              visible: widget.showArrived,
               child: Center(
                   child: Padding(
                       padding: const EdgeInsets.all(10.0),
@@ -379,7 +427,7 @@ class CustomMap extends StatelessWidget {
                               borderRadius: BorderRadius.circular(20),
                               color: Colors.white70),
                           child: Text(
-                              typeOfUser == TypeOfUser.driver
+                              widget.typeOfUser == TypeOfUser.driver
                                   ? 'Please wait for all passengers to board the car'
                                   : 'Your driver has arrived. Please board the car',
                               style: const TextStyle(fontSize: 30),
