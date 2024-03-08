@@ -18,8 +18,11 @@ import 'constants.dart';
 import 'package:uni_pool/socket_handler.dart';
 
 class NetworkImageWithPlaceholder extends StatelessWidget {
-  const NetworkImageWithPlaceholder(
-      {super.key, required this.typeOfImage, this.imageUrl});
+  const NetworkImageWithPlaceholder({
+    super.key,
+    required this.typeOfImage,
+    this.imageUrl,
+  });
 
   final String? imageUrl;
   final TypeOfImage typeOfImage;
@@ -28,22 +31,33 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
   Widget build(context) {
     if (imageUrl != null) {
       return CachedNetworkImage(
-          imageUrl: '$mediaHost/images/${typeOfImage.name}/$imageUrl',
-          placeholder: (_, __) => const CircularProgressIndicator(),
-          errorWidget: (_, __, ___) => const Icon(Icons.error_outline));
+        imageUrl: '$mediaHost/images/${typeOfImage.name}/$imageUrl',
+        placeholder: (_, __) => const CircularProgressIndicator(),
+        errorWidget: (_, __, ___) => const Icon(Icons.error_outline),
+      );
     }
-    return Stack(alignment: AlignmentDirectional.center, children: [
-      Container(
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        Container(
           height: 160,
           width: 160,
           color: Colors.grey.shade50,
-          child: Icon(Icons.add_photo_alternate,
-              color: Colors.grey.shade600, size: 50)),
-      Positioned(
+          child: Icon(
+            Icons.add_photo_alternate,
+            color: Colors.grey.shade600,
+            size: 50,
+          ),
+        ),
+        Positioned(
           bottom: 24,
-          child: Text('Add photo',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 15)))
-    ]);
+          child: Text(
+            'Add photo',
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -55,66 +69,76 @@ class UserProfileInfo extends StatelessWidget {
   @override
   Widget build(context) {
     return Selector<User,
-            ({String name, String id, int ratingsSum, int ratingsCount})>(
-        selector: (_, user) => (
-              name: user.name,
-              id: user.id,
-              ratingsSum: user.ratingsSum,
-              ratingsCount: user.ratingsCount
+        ({String name, String id, int ratingsSum, int ratingsCount})>(
+      selector: (_, user) => (
+        name: user.name,
+        id: user.id,
+        ratingsSum: user.ratingsSum,
+        ratingsCount: user.ratingsCount
+      ),
+      builder: (context, user, child) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            const Padding(padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
+            Text(user.name, style: Theme.of(context).textTheme.titleLarge),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
+            Text(user.id, style: Theme.of(context).textTheme.titleMedium),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 8.0)),
+            RatingBarIndicator(
+              itemSize: 36.0,
+              rating: user.ratingsCount != 0
+                  ? user.ratingsSum / user.ratingsCount
+                  : 0,
+              itemBuilder: (context, index) =>
+                  const Icon(Icons.star_rounded, color: Colors.amber),
             ),
-        builder: (context, user, child) {
-          return Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                const Padding(padding: EdgeInsets.fromLTRB(24, 40, 24, 0)),
-                Text(user.name, style: Theme.of(context).textTheme.titleLarge),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
-                Text(user.id, style: Theme.of(context).textTheme.titleMedium),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 8.0)),
-                RatingBarIndicator(
-                    itemSize: 36.0,
-                    rating: user.ratingsCount != 0
-                        ? user.ratingsSum / user.ratingsCount
-                        : 0,
-                    itemBuilder: (context, index) =>
-                        const Icon(Icons.star_rounded, color: Colors.amber)),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-                TextButton(
-                    onPressed: () async {
-                      bool? reply = await showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                                title: const Text('Really sign out?'),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text('Yes')),
-                                  TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text('No'))
-                                ]);
-                          });
-                      reply = reply ?? false;
-                      if (!context.mounted) return;
-                      if (reply) {
-                        SecureStorage.deleteAllSecure();
-                        SocketConnection.channel
-                            .add(jsonEncode({'type': typeSignout, 'data': {}}));
-                        Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const WelcomePage()));
-                      }
-                    },
-                    child: const Text("Sign out",
-                        style: TextStyle(fontSize: 16.0))),
-                const Padding(padding: EdgeInsets.symmetric(vertical: 6.0))
-              ]);
-        });
+            const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
+            TextButton(
+              onPressed: () async {
+                bool? reply = await showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Really sign out?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Yes'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('No'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                reply = reply ?? false;
+                if (!context.mounted) return;
+                if (reply) {
+                  SecureStorage.deleteAllSecure();
+                  SocketConnection.channel
+                      .add(jsonEncode({'type': typeSignout, 'data': {}}));
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const WelcomePage(),
+                    ),
+                  );
+                }
+              },
+              child: const Text(
+                'Sign out',
+                style: TextStyle(fontSize: 16.0),
+              ),
+            ),
+            const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -126,45 +150,63 @@ class UserProfileCard extends StatelessWidget {
   @override
   Widget build(context) {
     return Center(
-        child: Stack(alignment: const FractionalOffset(0.5, 0), children: [
-      Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(color: Colors.transparent, height: 80, width: 160),
-            Container(
+      child: Stack(
+        alignment: const FractionalOffset(0.5, 0),
+        children: [
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(color: Colors.transparent, height: 80, width: 160),
+              Container(
                 width: min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
                 clipBehavior: Clip.hardEdge,
                 decoration:
                     BoxDecoration(borderRadius: BorderRadius.circular(24)),
                 child: Material(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
-                        child: UserProfileInfo(showSignout: showSignout))))
-          ]),
-      IconButton(
-          onPressed: () async {
-            final result = await pickImage(imageQuality: userImageQuality);
-            if (result == null || result.mimeType == null) return;
-            final newImage = await uploadImage(
-                TypeOfImage.users, result.imagePath!, result.mimeType!);
-            if (newImage == null) return;
-            if (!context.mounted) return;
-            context.read<User>().setUserPicture(newImage);
-            SocketConnection.channel.add(
-                jsonEncode({'type': typeUpdateUserPicture, 'data': newImage}));
-          },
-          iconSize: 40,
-          icon: CircleAvatar(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
+                    child: UserProfileInfo(showSignout: showSignout),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          IconButton(
+            onPressed: () async {
+              final result = await pickImage(imageQuality: userImageQuality);
+              if (result == null || result.mimeType == null) return;
+              final newImage = await uploadImage(
+                TypeOfImage.users,
+                result.imagePath!,
+                result.mimeType!,
+              );
+              if (newImage == null) return;
+              if (!context.mounted) return;
+              context.read<User>().setUserPicture(newImage);
+              SocketConnection.channel.add(
+                jsonEncode({'type': typeUpdateUserPicture, 'data': newImage}),
+              );
+            },
+            iconSize: 40,
+            icon: CircleAvatar(
               radius: 70,
               child: ClipRRect(
-                  borderRadius: BorderRadius.circular(70),
-                  child: Selector<User, String?>(
-                      selector: (_, user) => user.picture,
-                      builder: (_, value, __) => NetworkImageWithPlaceholder(
-                          imageUrl: value, typeOfImage: TypeOfImage.users)))))
-    ]));
+                borderRadius: BorderRadius.circular(70),
+                child: Selector<User, String?>(
+                  selector: (_, user) => user.picture,
+                  builder: (_, value, __) => NetworkImageWithPlaceholder(
+                    imageUrl: value,
+                    typeOfImage: TypeOfImage.users,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -177,27 +219,32 @@ class UserAvatar extends StatelessWidget {
   Widget build(context) {
     return url != null
         ? CachedNetworkImage(
-            imageUrl: "$mediaHost/images/users/$url",
+            imageUrl: '$mediaHost/images/users/$url',
             imageBuilder: (context, imageProvider) => CircleAvatar(
               radius: size,
               backgroundImage: imageProvider,
             ),
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => CircleAvatar(
-                radius: size,
-                backgroundImage:
-                    const AssetImage("assets/images/blank_profile.png")),
+              radius: size,
+              backgroundImage:
+                  const AssetImage('assets/images/blank_profile.png'),
+            ),
           )
         : CircleAvatar(
             radius: size,
             backgroundImage:
-                const AssetImage('assets/images/blank_profile.png'));
+                const AssetImage('assets/images/blank_profile.png'),
+          );
   }
 }
 
 class UserImageButton extends StatelessWidget {
-  const UserImageButton(
-      {super.key, this.enablePress = true, this.showSignout = true});
+  const UserImageButton({
+    super.key,
+    this.enablePress = true,
+    this.showSignout = true,
+  });
 
   final bool enablePress;
   final bool showSignout;
@@ -205,23 +252,27 @@ class UserImageButton extends StatelessWidget {
   @override
   Widget build(context) {
     return IconButton(
-        onPressed: enablePress
-            ? () => showDialog(
+      onPressed: enablePress
+          ? () => showDialog(
                 context: context,
-                builder: (context) => UserProfileCard(showSignout: showSignout))
-            : null,
-        icon: Selector<User, String?>(
-            builder: (_, value, __) => UserAvatar(url: value),
-            selector: (_, user) => user.picture));
+                builder: (context) => UserProfileCard(showSignout: showSignout),
+              )
+          : null,
+      icon: Selector<User, String?>(
+        builder: (_, value, __) => UserAvatar(url: value),
+        selector: (_, user) => user.picture,
+      ),
+    );
   }
 }
 
 class SubtitledButton extends StatelessWidget {
-  const SubtitledButton(
-      {super.key,
-      required this.icon,
-      required this.subtitle,
-      required this.onPressed});
+  const SubtitledButton({
+    super.key,
+    required this.icon,
+    required this.subtitle,
+    required this.onPressed,
+  });
 
   final void Function()? onPressed;
   final Icon icon;
@@ -229,25 +280,30 @@ class SubtitledButton extends StatelessWidget {
 
   @override
   Widget build(context) {
-    return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      IconButton.filledTonal(
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton.filledTonal(
           onPressed: onPressed,
           icon: icon,
           iconSize: 70,
-          color: Theme.of(context).primaryColor),
-      const Padding(padding: EdgeInsets.all(5)),
-      subtitle
-    ]);
+          color: Theme.of(context).primaryColor,
+        ),
+        const Padding(padding: EdgeInsets.all(5)),
+        subtitle,
+      ],
+    );
   }
 }
 
 class SwitchUserButton extends StatelessWidget {
-  const SwitchUserButton(
-      {super.key,
-      required this.context,
-      required this.skip,
-      required this.typeOfUser,
-      this.back = false});
+  const SwitchUserButton({
+    super.key,
+    required this.context,
+    required this.skip,
+    required this.typeOfUser,
+    this.back = false,
+  });
 
   final BuildContext context;
   final bool skip;
@@ -257,54 +313,59 @@ class SwitchUserButton extends StatelessWidget {
   @override
   Widget build(context) {
     return IconButton(
-        onPressed: () async {
-          if (await stopDialog(context, skip, back, typeOfUser) &&
-              context.mounted) {
-            SocketConnection.channel.add(jsonEncode({
+      onPressed: () async {
+        if (await stopDialog(context, skip, back, typeOfUser) &&
+            context.mounted) {
+          SocketConnection.channel.add(
+            jsonEncode({
               'type': typeOfUser == TypeOfUser.driver
                   ? typeStopDriver
                   : typeStopPassenger,
-              'data': {}
-            }));
-            Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        (typeOfUser == TypeOfUser.driver) ^ back
-                            ? const PassengerPage()
-                            : const DriverPage()));
-          }
-        },
-        iconSize: 26.0,
-        icon: back
-            ? const Icon(Icons.arrow_back)
-            : typeOfUser == TypeOfUser.driver
-                ? const Icon(Icons.directions_walk)
-                : const Icon(Icons.directions_car),
-        tooltip: back
-            ? "Stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}"
-            : 'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode');
+              'data': {},
+            }),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => (typeOfUser == TypeOfUser.driver) ^ back
+                  ? const PassengerPage()
+                  : const DriverPage(),
+            ),
+          );
+        }
+      },
+      iconSize: 26.0,
+      icon: back
+          ? const Icon(Icons.arrow_back)
+          : typeOfUser == TypeOfUser.driver
+              ? const Icon(Icons.directions_walk)
+              : const Icon(Icons.directions_car),
+      tooltip: back
+          ? "Stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}"
+          : 'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode',
+    );
   }
 }
 
 class MoveCameraController {
   void Function(LatLng, double) moveCamera =
-      (_, __) => debugPrint("Move camera controller error");
+      (_, __) => debugPrint('Move camera controller error');
 }
 
 class CustomMap extends StatefulWidget {
-  const CustomMap(
-      {super.key,
-      required this.typeOfUser,
-      required this.mapController,
-      required this.markers,
-      required this.coordinates,
-      required this.showArrived,
-      required this.onMove,
-      required this.onPressGPS,
-      required this.centerGPS,
-      required this.moveCameraController,
-      this.polylinePoints});
+  const CustomMap({
+    super.key,
+    required this.typeOfUser,
+    required this.mapController,
+    required this.markers,
+    required this.coordinates,
+    required this.showArrived,
+    required this.onMove,
+    required this.onPressGPS,
+    required this.centerGPS,
+    required this.moveCameraController,
+    this.polylinePoints,
+  });
 
   final TypeOfUser typeOfUser;
   final MapController mapController;
@@ -336,13 +397,16 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
         Tween<double>(begin: camera.center.longitude, end: dest.longitude);
     final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
     final controller = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
     final Animation<double> animation =
         CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
     controller.addListener(() {
       widget.mapController.move(
-          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
-          zoomTween.evaluate(animation));
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+        zoomTween.evaluate(animation),
+      );
     });
     animation.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -357,90 +421,114 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return FlutterMap(
-        mapController: widget.mapController,
-        options: MapOptions(
-            initialCenter: const LatLng(37.9923, 23.7764),
-            initialZoom: 14.5,
-            minZoom: 14,
-            maxZoom: 16,
-            cameraConstraint: CameraConstraint.contain(bounds: mapBounds),
-            interactionOptions:
-                const InteractionOptions(flags: ~InteractiveFlag.rotate),
-            onPositionChanged: (position, hasGesture) {
-              if (hasGesture) widget.onMove();
-            }),
-        children: [
-          TileLayer(
-            urlTemplate: mapUrl,
-            tileProvider: AssetTileProvider(),
-            tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
-                const LatLng(37.97043, 23.80078)),
+      mapController: widget.mapController,
+      options: MapOptions(
+        initialCenter: const LatLng(37.9923, 23.7764),
+        initialZoom: 14.5,
+        minZoom: 14,
+        maxZoom: 16,
+        cameraConstraint: CameraConstraint.contain(bounds: mapBounds),
+        interactionOptions:
+            const InteractionOptions(flags: ~InteractiveFlag.rotate),
+        onPositionChanged: (position, hasGesture) {
+          if (hasGesture) widget.onMove();
+        },
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: mapUrl,
+          tileProvider: AssetTileProvider(),
+          tileBounds: LatLngBounds(
+            const LatLng(38.01304, 23.74121),
+            const LatLng(37.97043, 23.80078),
           ),
-          if (widget.polylinePoints != null)
-            PolylineLayer(polylines: [
+        ),
+        if (widget.polylinePoints != null)
+          PolylineLayer(
+            polylines: [
               Polyline(
-                  points: widget.polylinePoints!,
-                  color: Colors.lightBlue.shade400.withAlpha(200),
-                  strokeWidth: 6)
-            ]),
-          MarkerLayer(
-              markers: [
-                    if (widget.coordinates != null)
-                      Marker(
-                          point: LatLng(widget.coordinates!.latitude,
-                              widget.coordinates!.longitude),
-                          height: 14,
-                          width: 14,
-                          child: Container(
-                              decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue,
-                                  boxShadow: [
-                                BoxShadow(spreadRadius: 0.1, blurRadius: 2)
-                              ])))
-                  ] +
-                  widget.markers),
-          const Padding(padding: EdgeInsets.all(30)),
-          Align(
-              alignment: const Alignment(1, -0.95),
-              child: ElevatedButton(
-                  onPressed:
-                      widget.coordinates != null ? widget.onPressGPS : null,
-                  style: ElevatedButton.styleFrom(
-                      shape: const CircleBorder(),
-                      backgroundColor: Colors.white,
-                      padding: const EdgeInsets.all(5)),
-                  child: Icon(
-                      widget.centerGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
-                      size: 30))),
-          const SimpleAttributionWidget(
-              source: Text("OpenStreetMap contributors")),
-          Visibility(
-              visible: widget.showArrived,
-              child: Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              color: Colors.white70),
-                          child: Text(
-                              widget.typeOfUser == TypeOfUser.driver
-                                  ? 'Please wait for all passengers to board the car'
-                                  : 'Your driver has arrived. Please board the car',
-                              style: const TextStyle(fontSize: 30),
-                              textAlign: TextAlign.center)))))
-        ]);
+                points: widget.polylinePoints!,
+                color: Colors.lightBlue.shade400.withAlpha(200),
+                strokeWidth: 6,
+              ),
+            ],
+          ),
+        MarkerLayer(
+          markers: [
+                if (widget.coordinates != null)
+                  Marker(
+                    point: LatLng(
+                      widget.coordinates!.latitude,
+                      widget.coordinates!.longitude,
+                    ),
+                    height: 14,
+                    width: 14,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.blue,
+                        boxShadow: [
+                          BoxShadow(spreadRadius: 0.1, blurRadius: 2),
+                        ],
+                      ),
+                    ),
+                  ),
+              ] +
+              widget.markers,
+        ),
+        const Padding(padding: EdgeInsets.all(30)),
+        Align(
+          alignment: const Alignment(1, -0.95),
+          child: ElevatedButton(
+            onPressed: widget.coordinates != null ? widget.onPressGPS : null,
+            style: ElevatedButton.styleFrom(
+              shape: const CircleBorder(),
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.all(5),
+            ),
+            child: Icon(
+              widget.centerGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
+              size: 30,
+            ),
+          ),
+        ),
+        const SimpleAttributionWidget(
+          source: Text('OpenStreetMap contributors'),
+        ),
+        Visibility(
+          visible: widget.showArrived,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Container(
+                padding: const EdgeInsets.all(8.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white70,
+                ),
+                child: Text(
+                  widget.typeOfUser == TypeOfUser.driver
+                      ? 'Please wait for all passengers to board the car'
+                      : 'Your driver has arrived. Please board the car',
+                  style: const TextStyle(fontSize: 30),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
 class LargeFAB extends StatelessWidget {
-  const LargeFAB(
-      {super.key,
-      required this.onPressed,
-      required this.tooltip,
-      required this.inProgress});
+  const LargeFAB({
+    super.key,
+    required this.onPressed,
+    required this.tooltip,
+    required this.inProgress,
+  });
 
   final void Function()? onPressed;
   final String tooltip;
@@ -449,11 +537,14 @@ class LargeFAB extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.large(
-        heroTag: 'FAB1',
-        shape: const CircleBorder(),
-        tooltip: tooltip,
-        onPressed: onPressed,
-        child: Icon(inProgress ? Icons.stop_rounded : Icons.play_arrow_rounded,
-            size: 50));
+      heroTag: 'FAB1',
+      shape: const CircleBorder(),
+      tooltip: tooltip,
+      onPressed: onPressed,
+      child: Icon(
+        inProgress ? Icons.stop_rounded : Icons.play_arrow_rounded,
+        size: 50,
+      ),
+    );
   }
 }

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
-  static const name = "Settings";
+  static const name = 'Settings';
   @override
   State<SettingsPage> createState() => _SettingsPageState();
 }
@@ -38,29 +38,31 @@ class _SettingsPageState extends State<SettingsPage> {
         title: const Text('Settings'),
         actions: [
           IconButton(
-              onPressed: () {
-                _saveTestValue();
-                Navigator.pop(context);
-              },
-              icon: const Icon(Icons.check))
+            onPressed: () {
+              _saveTestValue();
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.check),
+          ),
         ],
       ),
       body: Center(
-          child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('I am $_test1'),
-          const Padding(padding: EdgeInsets.all(10)),
-          ElevatedButton(
-            onPressed: _updateTestValue,
-            child: const Text('Increment'),
-          ),
-          ElevatedButton(
-            onPressed: _resetTestValue,
-            child: const Text('Clear'),
-          )
-        ],
-      )),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('I am $_test1'),
+            const Padding(padding: EdgeInsets.all(10)),
+            ElevatedButton(
+              onPressed: _updateTestValue,
+              child: const Text('Increment'),
+            ),
+            ElevatedButton(
+              onPressed: _resetTestValue,
+              child: const Text('Clear'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

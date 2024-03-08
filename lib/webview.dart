@@ -25,20 +25,24 @@ class _WebVieScreenState extends State<WebViewScreen> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-        child: Scaffold(
-            appBar: AppBar(title: const Text('Browser')),
-            body: WebViewWidget(controller: webViewController)),
-        onWillPop: () {
-          Navigator.pop(
-              context,
-              http.Response(
-                  jsonEncode({
-                    'id': "0311900${(Random().nextInt(7) + 3)}",
-                    'name': 'Kalliopi Nasiou',
-                    'token': '123456789'
-                  }),
-                  200));
-          return Future.value(false);
-        });
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Browser')),
+        body: WebViewWidget(controller: webViewController),
+      ),
+      onWillPop: () {
+        Navigator.pop(
+          context,
+          http.Response(
+            jsonEncode({
+              'id': '0311900${(Random().nextInt(7) + 3)}',
+              'name': 'Kalliopi Nasiou',
+              'token': '123456789',
+            }),
+            200,
+          ),
+        );
+        return Future.value(false);
+      },
+    );
   }
 }

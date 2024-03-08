@@ -47,17 +47,17 @@ class SocketConnection {
     } catch (error) {
       ++tries;
       if (tries > 2) return null;
-      debugPrint("CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries");
+      debugPrint('CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries');
       await Future.delayed(const Duration(seconds: 2));
       return await connect();
     }
   }
 
   static void _onDone() {
-    connectionController.sink.add("done");
+    connectionController.sink.add('done');
   }
 
   static void _onError() {
-    connectionController.sink.add("error");
+    connectionController.sink.add('error');
   }
 }

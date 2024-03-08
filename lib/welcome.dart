@@ -28,7 +28,7 @@ class _WelcomePageState extends State<WelcomePage> {
     final decoded = jsonDecode(message);
     final type = decoded['type'];
     final data = decoded['data'];
-    debugPrint("received $data");
+    debugPrint('received $data');
     if (type == typeLogin) {
       context.read<User>().setUser(data);
       SecureStorage.storeValueSecure(LoginInfo.id, data['id']);
@@ -40,7 +40,7 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   void _connectionHandler(message) async {
-    if (message == "done" || message == "error") {
+    if (message == 'done' || message == 'error') {
       _connected = false;
       _loggedIn = false;
     }
@@ -50,12 +50,16 @@ class _WelcomePageState extends State<WelcomePage> {
   void _navigateToMain(typeOfUser) {
     switch (typeOfUser) {
       case TypeOfUser.driver:
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) => const DriverPage()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DriverPage()),
+        );
         break;
       case TypeOfUser.passenger:
-        Navigator.pushReplacement(context,
-            MaterialPageRoute(builder: (context) => const PassengerPage()));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const PassengerPage()),
+        );
         break;
       default:
     }
@@ -63,12 +67,14 @@ class _WelcomePageState extends State<WelcomePage> {
 
   void _logInRequest() async {
     final response = await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => const WebViewScreen(
-                  url:
-                      'https://google.com', //'https://login.ntua.gr/idp/profile/SAML2/Redirect/SSO'
-                )));
+      context,
+      MaterialPageRoute(
+        builder: (context) => const WebViewScreen(
+          url:
+              'https://google.com', //'https://login.ntua.gr/idp/profile/SAML2/Redirect/SSO'
+        ),
+      ),
+    );
     debugPrint(response.body);
     if (response!.statusCode == 200) {
       final jsonResponse = jsonDecode(response!.body);
@@ -92,10 +98,12 @@ class _WelcomePageState extends State<WelcomePage> {
     final String? savedToken =
         await SecureStorage.readValueSecure(LoginInfo.token);
     if (savedID != null && savedName != null && savedToken != null) {
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeLogin,
-        'data': {'id': savedID, 'name': savedName, 'token': savedToken}
-      }));
+      SocketConnection.channel.add(
+        jsonEncode({
+          'type': typeLogin,
+          'data': {'id': savedID, 'name': savedName, 'token': savedToken},
+        }),
+      );
     }
   }
 
@@ -120,38 +128,46 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: SafeArea(
-            child: Center(
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-          const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-                padding: const EdgeInsets.all(4),
-                child: IconButton(
-                    icon: const Icon(Icons.help),
-                    iconSize: 35,
-                    onPressed: () => ())),
-            const Spacer(flex: 1),
-            UserImageButton(enablePress: _loggedIn, showSignout: false),
-            const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
-          ]),
-          const Spacer(flex: 10),
-          const Text('LOGO',
-              style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900)),
-          const Spacer(flex: 10),
-          Builder(builder: (context) {
-            return TextButton(
-                onPressed: _connected == null || _loggedIn
-                    ? null
-                    : _connected!
-                        ? _logInRequest
-                        : _connect,
-                child: Selector<User, String>(
-                    selector: (_, user) => user.name,
-                    builder: (_, name, __) {
-                      return Text(
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    child: IconButton(
+                      icon: const Icon(Icons.help),
+                      iconSize: 35,
+                      onPressed: () => (),
+                    ),
+                  ),
+                  const Spacer(flex: 1),
+                  UserImageButton(enablePress: _loggedIn, showSignout: false),
+                  const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
+                ],
+              ),
+              const Spacer(flex: 10),
+              const Text(
+                'LOGO',
+                style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
+              ),
+              const Spacer(flex: 10),
+              Builder(
+                builder: (context) {
+                  return TextButton(
+                    onPressed: _connected == null || _loggedIn
+                        ? null
+                        : _connected!
+                            ? _logInRequest
+                            : _connect,
+                    child: Selector<User, String>(
+                      selector: (_, user) => user.name,
+                      builder: (_, name, __) {
+                        return Text(
                           _connected == null
                               ? 'Connecting...'
                               : !_connected!
@@ -160,46 +176,63 @@ class _WelcomePageState extends State<WelcomePage> {
                                       ? 'Logged in as $name'
                                       : 'Login',
                           style: const TextStyle(fontSize: 30),
-                          textAlign: TextAlign.center);
-                    }));
-          }),
-          Visibility(
-              visible: !_loggedIn,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: const Text('You must be logged in to use the app')),
-          const Spacer(flex: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            SubtitledButton(
-                icon: const Icon(Icons.directions_car),
-                subtitle: const Text("I am a driver"),
-                onPressed: _loggedIn
-                    ? () => _navigateToMain(TypeOfUser.driver)
-                    : null),
-            const Padding(padding: EdgeInsets.all(35)),
-            SubtitledButton(
-                icon: const Icon(Icons.directions_walk),
-                subtitle: const Text("I am a passenger"),
-                onPressed: _loggedIn
-                    ? () => _navigateToMain(TypeOfUser.passenger)
-                    : null)
-          ]),
-          const Spacer(flex: 20),
-          Visibility(
-              visible: _loggedIn,
-              maintainSize: true,
-              maintainAnimation: true,
-              maintainState: true,
-              child: TextButton(
+                          textAlign: TextAlign.center,
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+              Visibility(
+                visible: !_loggedIn,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: const Text('You must be logged in to use the app'),
+              ),
+              const Spacer(flex: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SubtitledButton(
+                    icon: const Icon(Icons.directions_car),
+                    subtitle: const Text('I am a driver'),
+                    onPressed: _loggedIn
+                        ? () => _navigateToMain(TypeOfUser.driver)
+                        : null,
+                  ),
+                  const Padding(padding: EdgeInsets.all(35)),
+                  SubtitledButton(
+                    icon: const Icon(Icons.directions_walk),
+                    subtitle: const Text('I am a passenger'),
+                    onPressed: _loggedIn
+                        ? () => _navigateToMain(TypeOfUser.passenger)
+                        : null,
+                  ),
+                ],
+              ),
+              const Spacer(flex: 20),
+              Visibility(
+                visible: _loggedIn,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: TextButton(
                   onPressed: () async {
                     bool reply = await signOutAlert(
-                        context: context, content: const SizedBox());
+                      context: context,
+                      content: const SizedBox(),
+                    );
                     if (reply) setState(() => _loggedIn = false);
                   },
-                  child:
-                      const Text('Sign out', style: TextStyle(fontSize: 25)))),
-          const Padding(padding: EdgeInsets.all(12))
-        ]))));
+                  child: const Text('Sign out', style: TextStyle(fontSize: 25)),
+                ),
+              ),
+              const Padding(padding: EdgeInsets.all(12)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

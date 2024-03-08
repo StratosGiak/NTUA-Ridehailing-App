@@ -16,12 +16,12 @@ class Car {
         picture = car['picture'],
         color = car['color'];
   Map<String, dynamic> toJson() => {
-        "car_id": id,
-        "model": model,
-        "seats": seats,
-        "license": license,
-        "picture": picture,
-        "color": color
+        'car_id': id,
+        'model': model,
+        'seats': seats,
+        'license': license,
+        'picture': picture,
+        'color': color,
       };
 }
 
@@ -33,12 +33,13 @@ class User with ChangeNotifier {
   int ratingsCount;
   Map<String, Car> cars;
 
-  User(
-      {this.id = 'INVALID',
-      this.name = '',
-      this.ratingsSum = 0,
-      this.ratingsCount = 0,
-      this.cars = const {}});
+  User({
+    this.id = 'INVALID',
+    this.name = '',
+    this.ratingsSum = 0,
+    this.ratingsCount = 0,
+    this.cars = const {},
+  });
 
   User.userFromMap(Map<String, dynamic> user)
       : id = user['id'],

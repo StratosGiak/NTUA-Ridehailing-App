@@ -13,12 +13,12 @@ import 'package:uni_pool/welcome.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
-import "package:latlong2/latlong.dart";
+import 'package:latlong2/latlong.dart';
 import 'package:uni_pool/widgets.dart';
 
 class PassengerPage extends StatefulWidget {
   const PassengerPage({super.key});
-  static const name = "Passenger";
+  static const name = 'Passenger';
   @override
   State<PassengerPage> createState() => _PassengerPageState();
 }
@@ -45,12 +45,12 @@ class _PassengerPageState extends State<PassengerPage>
     if (decoded['type'] == null ||
         decoded['type'] is! String ||
         decoded['data'] == null) {
-      debugPrint("Received bad json: $message");
+      debugPrint('Received bad json: $message');
       return;
     }
     final type = decoded['type'] as String;
     final data = decoded['data'];
-    debugPrint("received $type : $data");
+    debugPrint('received $type : $data');
     switch (type) {
       case typeGetDriver:
         if (driver == null) return;
@@ -64,10 +64,11 @@ class _PassengerPageState extends State<PassengerPage>
         } else {
           if (driverArrived) {
             final driverPassengerDistance = Geolocator.distanceBetween(
-                driver!['coords']['latitude'],
-                driver!['coords']['longitude'],
-                coordinates!.latitude,
-                coordinates!.longitude);
+              driver!['coords']['latitude'],
+              driver!['coords']['longitude'],
+              coordinates!.latitude,
+              coordinates!.longitude,
+            );
             if (driverPassengerDistance > maxSeperation) {
               HapticFeedback.heavyImpact();
               driver = null;
@@ -81,18 +82,27 @@ class _PassengerPageState extends State<PassengerPage>
             }
             if (followDriver) {
               moveCameraController.moveCamera(
-                  LatLng(driver!['coords']['latitude'],
-                      driver!['coords']['longitude']),
-                  mapController.camera.zoom);
+                LatLng(
+                  driver!['coords']['latitude'],
+                  driver!['coords']['longitude'],
+                ),
+                mapController.camera.zoom,
+              );
             }
           }
           if (driverPositions.length > 50) {
             driverPositions.removeFirst();
           }
           final pos = LatLng(
-              driver!['coords']['latitude'], driver!['coords']['longitude']);
-          if (Geolocator.distanceBetween(pos.latitude, pos.longitude,
-                      busStop.latitude, busStop.longitude) <
+            driver!['coords']['latitude'],
+            driver!['coords']['longitude'],
+          );
+          if (Geolocator.distanceBetween(
+                    pos.latitude,
+                    pos.longitude,
+                    busStop.latitude,
+                    busStop.longitude,
+                  ) <
                   arrivalRange &&
               !driverArrived) {
             moveCameraController.moveCamera(pos, 15.5);
@@ -123,17 +133,24 @@ class _PassengerPageState extends State<PassengerPage>
         if (driver == null) return;
         HapticFeedback.heavyImpact();
         moveCameraController.moveCamera(
-            LatLng(coordinates!.latitude, coordinates!.longitude), 15.5);
+          LatLng(coordinates!.latitude, coordinates!.longitude),
+          15.5,
+        );
         final List<double>? rating = await arrivedDialog(
-            context: context, users: [driver!], typeOfUser: TypeOfUser.driver);
+          context: context,
+          users: [driver!],
+          typeOfUser: TypeOfUser.driver,
+        );
         if (rating != null) {
-          SocketConnection.channel.add(jsonEncode({
-            'type': typeSendRatings,
-            'data': {
-              'users': [driver!['id']],
-              'ratings': rating
-            }
-          }));
+          SocketConnection.channel.add(
+            jsonEncode({
+              'type': typeSendRatings,
+              'data': {
+                'users': [driver!['id']],
+                'ratings': rating,
+              },
+            }),
+          );
         }
         if (!mounted) return;
         Navigator.pushReplacement(
@@ -152,32 +169,37 @@ class _PassengerPageState extends State<PassengerPage>
       if (pos == null) return;
       coordinates = pos;
       final distanceToBusStop = Geolocator.distanceBetween(
-          coordinates!.latitude,
-          coordinates!.longitude,
-          busStop.latitude,
-          busStop.longitude);
+        coordinates!.latitude,
+        coordinates!.longitude,
+        busStop.latitude,
+        busStop.longitude,
+      );
       if (distanceToBusStop > busStopRange) return;
       inRadius = true;
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeNewPassenger,
-        'data': {
-          'coords': {
-            "latitude": coordinates!.latitude,
-            "longitude": coordinates!.longitude
+      SocketConnection.channel.add(
+        jsonEncode({
+          'type': typeNewPassenger,
+          'data': {
+            'coords': {
+              'latitude': coordinates!.latitude,
+              'longitude': coordinates!.longitude,
+            },
+            'timestamp': coordinates!.timestamp.toIso8601String(),
           },
-          'timestamp': coordinates!.timestamp.toIso8601String()
-        }
-      }));
+        }),
+      );
     } else {
-      SocketConnection.channel.add(jsonEncode({
-        'type': typeUpdatePassenger,
-        'data': {
-          'coords': {
-            "latitude": coordinates!.latitude,
-            "longitude": coordinates!.longitude
-          }
-        }
-      }));
+      SocketConnection.channel.add(
+        jsonEncode({
+          'type': typeUpdatePassenger,
+          'data': {
+            'coords': {
+              'latitude': coordinates!.latitude,
+              'longitude': coordinates!.longitude,
+            },
+          },
+        }),
+      );
     }
     setState(() {});
   }
@@ -193,25 +215,29 @@ class _PassengerPageState extends State<PassengerPage>
         timer.cancel();
       }
     });
-    Timer countdownDismissTimer = Timer(Duration(seconds: initalSeconds),
-        () => Navigator.of(context, rootNavigator: true).pop(false));
+    Timer countdownDismissTimer = Timer(
+      Duration(seconds: initalSeconds),
+      () => Navigator.of(context, rootNavigator: true).pop(false),
+    );
     bool? reply = await acceptDialog(
       context,
       timerDisplay: ValueListenableBuilder(
-          valueListenable: remainingSeconds,
-          builder: (context, value, child) {
-            return Text("$value",
-                style: TextStyle(
-                    color: Colors.grey.shade800,
-                    fontSize: 30.0,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center);
-          }),
-    ).then((value) {
-      countdownSecTimer.cancel();
-      countdownDismissTimer.cancel();
-      return value;
-    });
+        valueListenable: remainingSeconds,
+        builder: (context, value, child) {
+          return Text(
+            '$value',
+            style: TextStyle(
+              color: Colors.grey.shade800,
+              fontSize: 30.0,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          );
+        },
+      ),
+    );
+    countdownSecTimer.cancel();
+    countdownDismissTimer.cancel();
     reply ??= false;
     if (reply) {
       SocketConnection.channel
@@ -223,16 +249,18 @@ class _PassengerPageState extends State<PassengerPage>
         SocketConnection.channel
             .add(jsonEncode({'type': typeStopPassenger, 'data': {}}));
         refusedCooldownTimer = Timer(const Duration(seconds: 30), () {
-          SocketConnection.channel.add(jsonEncode({
-            'type': typeNewPassenger,
-            'data': {
-              'coords': {
-                "latitude": coordinates!.latitude,
-                "longitude": coordinates!.longitude
+          SocketConnection.channel.add(
+            jsonEncode({
+              'type': typeNewPassenger,
+              'data': {
+                'coords': {
+                  'latitude': coordinates!.latitude,
+                  'longitude': coordinates!.longitude,
+                },
+                'timestamp': coordinates!.timestamp.toIso8601String(),
               },
-              'timestamp': coordinates!.timestamp.toIso8601String()
-            }
-          }));
+            }),
+          );
         });
       }
       SocketConnection.channel
@@ -251,9 +279,12 @@ class _PassengerPageState extends State<PassengerPage>
         onTap: () {
           followDriver = true;
           moveCameraController.moveCamera(
-              LatLng(
-                  driver['coords']['latitude'], driver['coords']['longitude']),
-              16);
+            LatLng(
+              driver['coords']['latitude'],
+              driver['coords']['longitude'],
+            ),
+            16,
+          );
         },
         onLongPress: () {},
         leading: CircleAvatar(
@@ -274,11 +305,11 @@ class _PassengerPageState extends State<PassengerPage>
                         imageUrl:
                             '$mediaHost/images/users/${driver['picture']}',
                         placeholder: (context, url) =>
-                            Image.asset("assets/images/blank_profile.png"),
+                            Image.asset('assets/images/blank_profile.png'),
                         errorWidget: (context, url, error) =>
-                            Image.asset("assets/images/blank_profile.png"),
+                            Image.asset('assets/images/blank_profile.png'),
                       )
-                    : Image.asset("assets/images/blank_profile.png"),
+                    : Image.asset('assets/images/blank_profile.png'),
               ),
             ),
           ),
@@ -302,12 +333,12 @@ class _PassengerPageState extends State<PassengerPage>
                         width: 50,
                         color: Color(driver['car']['color']),
                       )
-                    : const Text('N/A')
+                    : const Text('N/A'),
               ],
             ),
             Row(
               children: [
-                const Text("Rating:"),
+                const Text('Rating:'),
                 const Padding(padding: EdgeInsets.symmetric(horizontal: 3.0)),
                 driver['ratings_count'] > 3
                     ? Row(
@@ -323,11 +354,12 @@ class _PassengerPageState extends State<PassengerPage>
                             ),
                           ),
                           const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 3.0)),
+                            padding: EdgeInsets.symmetric(horizontal: 3.0),
+                          ),
                           Text("(${driver['ratings_count']})"),
                         ],
                       )
-                    : const Text("N/A"),
+                    : const Text('N/A'),
               ],
             ),
             Text("Distance: ${(Geolocator.distanceBetween(
@@ -335,7 +367,7 @@ class _PassengerPageState extends State<PassengerPage>
                   driver["coords"]["longitude"],
                   busStop.latitude,
                   busStop.longitude,
-                ) / 25).round() * 25}m")
+                ) / 25).round() * 25}m"),
           ],
         ),
       ),
@@ -346,44 +378,52 @@ class _PassengerPageState extends State<PassengerPage>
     if (driver == null) return;
     List<Widget> images = [];
     if (driver!['picture'] != null) {
-      images.add(Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: FittedBox(
-          child: CachedNetworkImage(
-            imageUrl: '$mediaHost/images/users/${driver!['picture']}',
-            placeholder: (context, url) => const CircularProgressIndicator(),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
+      images.add(
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: FittedBox(
+            child: CachedNetworkImage(
+              imageUrl: '$mediaHost/images/users/${driver!['picture']}',
+              placeholder: (context, url) => const CircularProgressIndicator(),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
           ),
         ),
-      ));
+      );
     }
     if (driver!['car']['picture'] != null) {
-      images.add(Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: FittedBox(
-          child: CachedNetworkImage(
-            imageUrl: '$mediaHost/images/cars/${driver!['car']['picture']}',
-            placeholder: (context, url) => const CircularProgressIndicator(),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
+      images.add(
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: FittedBox(
+            child: CachedNetworkImage(
+              imageUrl: '$mediaHost/images/cars/${driver!['car']['picture']}',
+              placeholder: (context, url) => const CircularProgressIndicator(),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
           ),
         ),
-      ));
+      );
     }
     showDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (context) {
-          return Dialog(
-              backgroundColor: Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              insetPadding: EdgeInsets.zero,
-              child: ConstrainedBox(
-                  constraints: BoxConstraints.tight(
-                      Size.square(MediaQuery.of(context).size.width)),
-                  child: PageView(
-                    children: images,
-                  )));
-        });
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: ConstrainedBox(
+            constraints: BoxConstraints.tight(
+              Size.square(MediaQuery.of(context).size.width),
+            ),
+            child: PageView(
+              children: images,
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildPassengerScreen() {
@@ -392,7 +432,7 @@ class _PassengerPageState extends State<PassengerPage>
         child: Padding(
           padding: EdgeInsets.all(20.0),
           child: Text(
-            "The app will start looking for drivers once you get close to the bus stop",
+            'The app will start looking for drivers once you get close to the bus stop',
             style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
             textAlign: TextAlign.center,
           ),
@@ -401,26 +441,33 @@ class _PassengerPageState extends State<PassengerPage>
     }
     if (driver == null) {
       var children = [
-        Text("Searching for${requestTimeout ? " more" : ""} drivers...",
-            style:
-                const TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600)),
+        Text(
+          "Searching for${requestTimeout ? " more" : ""} drivers...",
+          style: const TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
+        ),
         const Padding(padding: EdgeInsets.all(20.0)),
-        const CircularProgressIndicator()
+        const CircularProgressIndicator(),
       ];
       if (driverRefused) {
         children.insert(
-            0,
-            const Text("Ride cancelled",
-                style: TextStyle(
-                  fontSize: 22.0,
-                )));
+          0,
+          const Text(
+            'Ride cancelled',
+            style: TextStyle(
+              fontSize: 22.0,
+            ),
+          ),
+        );
       } else if (requestTimeout) {
         children.insert(
-            0,
-            const Text("You didn't get the driver in time",
-                style: TextStyle(
-                  fontSize: 22.0,
-                )));
+          0,
+          const Text(
+            "You didn't get the driver in time",
+            style: TextStyle(
+              fontSize: 22.0,
+            ),
+          ),
+        );
       }
       return Center(
         child: Column(
@@ -429,8 +476,9 @@ class _PassengerPageState extends State<PassengerPage>
         ),
       );
     } else {
-      return Column(children: [
-        Expanded(
+      return Column(
+        children: [
+          Expanded(
             flex: 1,
             child: CustomMap(
               typeOfUser: TypeOfUser.passenger,
@@ -441,25 +489,31 @@ class _PassengerPageState extends State<PassengerPage>
               onMove: () => setState(() => followDriver = false),
               moveCameraController: moveCameraController,
               onPressGPS: () => moveCameraController.moveCamera(
-                  LatLng(coordinates!.latitude, coordinates!.longitude),
-                  mapController.camera.zoom),
+                LatLng(coordinates!.latitude, coordinates!.longitude),
+                mapController.camera.zoom,
+              ),
               centerGPS: true,
               polylinePoints: driverPositions.toList(),
-            )),
-        Container(
+            ),
+          ),
+          Container(
             color: Colors.white,
-            child: Column(children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  "Driver",
-                  style: TextStyle(fontSize: 20),
-                  textAlign: TextAlign.center,
+            child: Column(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Driver',
+                    style: TextStyle(fontSize: 20),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-              _showDriver(driver)
-            ]))
-      ]);
+                _showDriver(driver),
+              ],
+            ),
+          ),
+        ],
+      );
     }
   }
 
@@ -477,10 +531,11 @@ class _PassengerPageState extends State<PassengerPage>
     super.initState();
     SocketConnection.receiveSubscription.onData(socketPassengerHandler);
     positionStream = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 20,
-    )).listen(_onPositionChanged);
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 20,
+      ),
+    ).listen(_onPositionChanged);
     _sendPassenger();
   }
 
@@ -497,14 +552,19 @@ class _PassengerPageState extends State<PassengerPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(title: const Text('Passenger'), actions: [
+      appBar: AppBar(
+        title: const Text('Passenger'),
+        actions: [
           SwitchUserButton(
-              context: context,
-              skip: driver == null || !inRadius,
-              typeOfUser: TypeOfUser.passenger),
+            context: context,
+            skip: driver == null || !inRadius,
+            typeOfUser: TypeOfUser.passenger,
+          ),
           const UserImageButton(),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0))
-        ]),
-        body: _buildPassengerScreen());
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
+        ],
+      ),
+      body: _buildPassengerScreen(),
+    );
   }
 }
