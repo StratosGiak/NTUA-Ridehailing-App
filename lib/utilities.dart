@@ -118,7 +118,7 @@ Future<bool> signOutAlert(
                       SecureStorage.deleteAllSecure();
                       SocketConnection.channel
                           .add(jsonEncode({'type': typeSignout, 'data': {}}));
-                      context.read<User>().setUser();
+                      context.read<User>().setUser(null);
                       Navigator.pop(context, true);
                     },
                     child: const Text('Yes')),
@@ -127,6 +127,45 @@ Future<bool> signOutAlert(
                     child: const Text('Cancel'))
               ]));
   return reply ?? false;
+}
+
+Future<bool?> acceptDialog(BuildContext context, {Widget? timerDisplay}) {
+  return showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0)),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Padding(padding: EdgeInsets.all(5.0)),
+              const Padding(
+                  padding: EdgeInsets.all(10.0),
+                  child: Text("A driver is available. Accept them?",
+                      style: TextStyle(
+                          fontSize: 25.0, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center)),
+              if (timerDisplay != null) timerDisplay,
+              const Padding(padding: EdgeInsets.all(10.0)),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                IconButton.filled(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ButtonStyle(
+                        backgroundColor:
+                            MaterialStatePropertyAll(Colors.green.shade300)),
+                    iconSize: 55.0,
+                    icon: const Icon(Icons.check_rounded)),
+                IconButton.filled(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: ButtonStyle(
+                        backgroundColor:
+                            MaterialStatePropertyAll(Colors.red.shade300)),
+                    iconSize: 55.0,
+                    icon: const Icon(Icons.close_rounded))
+              ]),
+              const Padding(padding: EdgeInsets.all(10.0))
+            ]));
+      });
 }
 
 Future<List<double>?> arrivedDialog(
@@ -252,8 +291,8 @@ List<Marker> usersToMarkers(List<Map<String, dynamic>> users) {
                 decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: user['car'] != null && user['car']['color'] != null
-                        ? Color(int.parse(user['car']['color']))
-                        : colors[int.parse(user["id"][user["id"].length - 1])],
+                        ? Color(user['car']['color'])
+                        : colors[user["id"][user["id"].length - 1]],
                     border: Border.all(color: Colors.white, width: 3),
                     boxShadow: const [
                   BoxShadow(spreadRadius: 0.1, blurRadius: 3)

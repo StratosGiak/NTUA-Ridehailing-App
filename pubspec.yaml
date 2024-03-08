@@ -62,7 +62,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  flutter_lints: ^3.0.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -81,6 +81,29 @@ flutter:
   assets:
     - assets/
     - assets/images/
+    - assets/map_tiles/14/9272/
+    - assets/map_tiles/14/9273/
+    - assets/map_tiles/14/9274/
+    - assets/map_tiles/14/9275/
+    - assets/map_tiles/15/18544/
+    - assets/map_tiles/15/18545/
+    - assets/map_tiles/15/18546/
+    - assets/map_tiles/15/18547/
+    - assets/map_tiles/15/18548/
+    - assets/map_tiles/15/18549/
+    - assets/map_tiles/15/18550/
+    - assets/map_tiles/16/37089/
+    - assets/map_tiles/16/37090/
+    - assets/map_tiles/16/37091/
+    - assets/map_tiles/16/37092/
+    - assets/map_tiles/16/37093/
+    - assets/map_tiles/16/37094/
+    - assets/map_tiles/16/37095/
+    - assets/map_tiles/16/37096/
+    - assets/map_tiles/16/37097/
+    - assets/map_tiles/16/37098/
+    - assets/map_tiles/16/37099/
+    - assets/map_tiles/16/37100/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 

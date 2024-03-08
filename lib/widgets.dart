@@ -356,7 +356,6 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    if (mapUrl.isEmpty) return const SizedBox.shrink();
     return FlutterMap(
         mapController: widget.mapController,
         options: MapOptions(
@@ -372,11 +371,11 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
             }),
         children: [
           TileLayer(
-              urlTemplate: mapUrl,
-              tileProvider: NetworkTileProvider(),
-              // tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
-              //     const LatLng(37.97043, 23.80078)),
-              evictErrorTileStrategy: EvictErrorTileStrategy.dispose),
+            urlTemplate: mapUrl,
+            tileProvider: AssetTileProvider(),
+            tileBounds: LatLngBounds(const LatLng(38.01304, 23.74121),
+                const LatLng(37.97043, 23.80078)),
+          ),
           if (widget.polylinePoints != null)
             PolylineLayer(polylines: [
               Polyline(
@@ -433,5 +432,28 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
                               style: const TextStyle(fontSize: 30),
                               textAlign: TextAlign.center)))))
         ]);
+  }
+}
+
+class LargeFAB extends StatelessWidget {
+  const LargeFAB(
+      {super.key,
+      required this.onPressed,
+      required this.tooltip,
+      required this.inProgress});
+
+  final void Function()? onPressed;
+  final String tooltip;
+  final bool inProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    return FloatingActionButton.large(
+        heroTag: 'FAB1',
+        shape: const CircleBorder(),
+        tooltip: tooltip,
+        onPressed: onPressed,
+        child: Icon(inProgress ? Icons.stop_rounded : Icons.play_arrow_rounded,
+            size: 50));
   }
 }

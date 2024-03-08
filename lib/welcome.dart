@@ -30,12 +30,11 @@ class _WelcomePageState extends State<WelcomePage> {
     final data = decoded['data'];
     debugPrint("received $data");
     if (type == typeLogin) {
-      context.read<User>().setUser(user: data);
+      context.read<User>().setUser(data);
       SecureStorage.storeValueSecure(LoginInfo.id, data['id']);
       SecureStorage.storeValueSecure(LoginInfo.name, data['name']);
       SecureStorage.storeValueSecure(LoginInfo.token, data['token']);
       _loggedIn = true;
-      mapUrl = data['mapUrl'];
     }
     setState(() {});
   }

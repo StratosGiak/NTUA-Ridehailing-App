@@ -39,6 +39,8 @@ class _DriverPageState extends State<DriverPage> {
   final mapController = MapController();
   final moveCameraController = MoveCameraController();
   String? selectedCar;
+  late List<String> suggestions;
+  bool test = false;
   bool inRadius = false;
   bool driving = false;
   bool waitingForPassengers = false;
@@ -86,11 +88,8 @@ class _DriverPageState extends State<DriverPage> {
           passengerAcceptTimer!.cancel();
         }
         if (data['cancelled'] != null) {
-          debugPrint("${data['cancelled']}");
-          debugPrint("$passengers");
           passengers
               .removeWhere((element) => element['id'] == data['cancelled']);
-          debugPrint("$passengers");
           if (passengers.isEmpty) {
             debugPrint("DELETED");
             passengersCancelled = true;
@@ -111,24 +110,47 @@ class _DriverPageState extends State<DriverPage> {
         }
         break;
       case typeAddCar:
-        Provider.of<User>(context, listen: false).cars['${data['car_id']}'] =
-            data;
+        context.read<User>().addCar(Car.fromMap(data));
         break;
       case typeRemoveCar:
-        Provider.of<User>(context, listen: false).cars.remove(data);
-        if (Provider.of<User>(context, listen: false).cars.isEmpty) {
-          selectedCar = null;
-        } else {
-          selectedCar = Provider.of<User>(context, listen: false).cars[
-              Provider.of<User>(context, listen: false)
-                  .cars
-                  .keys
-                  .toList()[0]]!['car_id'];
-        }
+        selectedCar = null;
+        context.read<User>().removeCar(data);
         break;
       default:
         debugPrint("Invalid type: $type");
         break;
+    }
+    setState(() {});
+  }
+
+  void _toggleDriving() {
+    if (driving) {
+      if (!_getPassengersStreamSubscription.isPaused) {
+        _getPassengersStreamSubscription.pause();
+      }
+      if (!positionStream.isPaused) {
+        positionStream.pause();
+      }
+      if (passengerAcceptTimer != null) {
+        passengerAcceptTimer!.cancel();
+      }
+      if (refusedCooldownTimer != null) {
+        refusedCooldownTimer!.cancel();
+      }
+      driving = false;
+      inRadius = false;
+      waitingForPassengers = false;
+      passengersCancelled = false;
+      requestTimeout = false;
+      passengers = [];
+      SocketConnection.channel
+          .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
+    } else {
+      if (positionStream.isPaused) {
+        positionStream.resume();
+      }
+      driving = true;
+      _sendDriver();
     }
     setState(() {});
   }
@@ -150,7 +172,7 @@ class _DriverPageState extends State<DriverPage> {
       SocketConnection.channel.add(jsonEncode({
         'type': typeNewDriver,
         'data': {
-          'car': Provider.of<User>(context, listen: false).cars[selectedCar],
+          'car': context.read<User>().cars[selectedCar],
           'coords': {
             "latitude": coordinates!.latitude,
             "longitude": coordinates!.longitude
@@ -171,53 +193,7 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   void _acceptPassengers() async {
-    bool? reply = await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0)),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Padding(padding: EdgeInsets.all(10.0)),
-                  const Text(
-                    "Passengers are available. Accept them?",
-                    style:
-                        TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const Padding(padding: EdgeInsets.all(20.0)),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton.filled(
-                        onPressed: () {
-                          Navigator.pop(context, true);
-                        },
-                        style: ButtonStyle(
-                            backgroundColor: MaterialStatePropertyAll(
-                                Colors.green.shade300)),
-                        iconSize: 50.0,
-                        icon: const Icon(Icons.check_rounded),
-                      ),
-                      IconButton.filled(
-                        onPressed: () {
-                          Navigator.pop(context, false);
-                        },
-                        style: ButtonStyle(
-                            backgroundColor:
-                                MaterialStatePropertyAll(Colors.red.shade300)),
-                        iconSize: 50.0,
-                        icon: const Icon(Icons.close_rounded),
-                      )
-                    ],
-                  ),
-                  const Padding(padding: EdgeInsets.all(10.0))
-                ],
-              ));
-        });
+    bool? reply = await acceptDialog(context);
     reply ??= false;
     if (reply) {
       waitingForPassengers = true;
@@ -411,98 +387,94 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   Widget _createCarList() {
-    final user = Provider.of<User>(context);
-    final cars = user.cars;
-    final keys = cars.keys.toList();
-    return Container(
-      color: const Color.fromARGB(123, 255, 255, 255),
-      child: ListView.separated(
-          shrinkWrap: true,
-          itemBuilder: (context, index) {
-            return ListTile(
-                onTap: () {},
-                onLongPress: () {},
-                title: Text(cars[keys[index]]!["model"]),
-                subtitle: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text("Seats: ${cars[keys[index]]!["seats"]}")),
-                leading: Radio<String>(
-                    value: keys[index],
-                    groupValue: selectedCar,
-                    onChanged: (value) {
-                      selectedCar = value!;
-                      setState(() {});
-                    }),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  IconButton(
-                      onPressed: () async {
-                        final car =
-                            await _createCar(id: int.parse(keys[index]));
-                        if (car != null) {
-                          car["car_id"] = int.parse(keys[index]);
-                          SocketConnection.channel.add(
-                              jsonEncode({'type': typeUpdateCar, 'data': car}));
-                        }
-                      },
-                      icon: const Icon(Icons.edit)),
-                  IconButton(
-                    onPressed: () async {
-                      bool? reply = await showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                                title: const Text('Really delete car?'),
-                                content:
-                                    const Text('This action cannot be undone'),
-                                actions: [
-                                  TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(context, true);
-                                      },
-                                      child: const Text('Yes')),
-                                  TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(context, false);
-                                      },
-                                      child: const Text('No'))
-                                ]);
-                          });
-                      if (reply ?? false) {
-                        SocketConnection.channel.add(jsonEncode(
-                            {'type': typeRemoveCar, 'data': keys[index]}));
-                      }
-                    },
-                    icon: const Icon(Icons.delete),
-                  )
-                ]));
-          },
-          separatorBuilder: (context, index) => const Divider(),
-          itemCount: cars.length),
-    );
+    return Builder(builder: (context) {
+      final user = context.watch<User>();
+      final cars = user.cars;
+      final keys = cars.keys.toList();
+      return Container(
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: const Color.fromARGB(144, 255, 255, 255)),
+          child: ListView.separated(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              shrinkWrap: true,
+              itemBuilder: (context, index) {
+                return ListTile(
+                    onTap: () => setState(() => selectedCar = keys[index]),
+                    onLongPress: () {},
+                    title: Text(cars[keys[index]]!.model),
+                    subtitle: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text("Seats: ${cars[keys[index]]!.seats}")),
+                    leading: Radio<String>(
+                        value: keys[index],
+                        groupValue: selectedCar,
+                        onChanged: (value) =>
+                            setState(() => selectedCar = value)),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                          onPressed: () async {
+                            final car = await _createCar(id: keys[index]);
+                            if (car != null) {
+                              car.id = keys[index];
+                              SocketConnection.channel.add(jsonEncode(
+                                  {'type': typeUpdateCar, 'data': car}));
+                            }
+                          },
+                          icon: const Icon(Icons.edit)),
+                      IconButton(
+                          onPressed: () async {
+                            bool? reply = await showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                      title: const Text('Really delete car?'),
+                                      content: const Text(
+                                          'This action cannot be undone'),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, true),
+                                            child: const Text('Yes')),
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context, false),
+                                            child: const Text('No'))
+                                      ]);
+                                });
+                            if (reply ?? false) {
+                              SocketConnection.channel.add(jsonEncode({
+                                'type': typeRemoveCar,
+                                'data': keys[index]
+                              }));
+                            }
+                          },
+                          icon: const Icon(Icons.delete))
+                    ]));
+              },
+              separatorBuilder: (context, index) =>
+                  const Divider(indent: 20, endIndent: 20),
+              itemCount: cars.length));
+    });
   }
 
-  Future<Map<String, dynamic>?> _createCar({int? id}) async {
+  Future<Car?> _createCar({String? id}) async {
     ValueNotifier<({String? imagePath, String? mimeType})> selectedImage =
         ValueNotifier((imagePath: null, mimeType: null));
     ValueNotifier<Color?> finalColor = ValueNotifier(null);
-    final car = id != null
-        ? Provider.of<User>(context, listen: false).cars['$id']
-        : null;
-    if (car != null && car['color'] != null) {
-      finalColor.value = Color(int.parse(car['color']));
+    final car = id != null ? context.read<User>().cars[id] : null;
+    if (car != null && car.color != null) {
+      finalColor.value = Color(car.color!);
     }
-    List<String> suggestions =
-        (await DefaultAssetBundle.of(context).loadString('assets/cars.txt'))
-            .split('\n');
     if (!mounted) return null;
-    return showDialog<Map<String, dynamic>>(
+    return showDialog<Car>(
         context: context,
         builder: (context) {
           ValueNotifier<int> seats = ValueNotifier<int>(2);
           if (car != null) {
-            seats.value = car['seats'];
-            _licensePlateController.text = car['license'];
-            _modelNameController.text = car['model'];
+            seats.value = car.seats;
+            _licensePlateController.text = car.license;
+            _modelNameController.text = car.model;
           }
           final formKey = GlobalKey<FormState>();
           return Center(
@@ -515,7 +487,7 @@ class _DriverPageState extends State<DriverPage> {
                   Container(color: Colors.transparent, height: 80, width: 160),
                   Container(
                       width:
-                          min(MediaQuery.sizeOf(context).width - 2 * 40, 350),
+                          min(MediaQuery.sizeOf(context).width - 2 * 25, 350),
                       clipBehavior: Clip.hardEdge,
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(24)),
@@ -546,7 +518,7 @@ class _DriverPageState extends State<DriverPage> {
                                                   focusNode, onFieldSubmitted) {
                                             if (car != null) {
                                               textEditingController.text =
-                                                  car['model'];
+                                                  car.model;
                                             }
                                             return TextFormField(
                                                 controller:
@@ -795,17 +767,24 @@ class _DriverPageState extends State<DriverPage> {
                                                                 _licensePlateController
                                                                     .text);
                                                         if (!mounted) return;
-                                                        Navigator.pop(context, {
-                                                          "model": modelName,
-                                                          "license":
-                                                              licensePlate,
-                                                          "seats": seats.value,
-                                                          "picture": imageName ??
-                                                              car?['picture'],
-                                                          "color": finalColor
-                                                              .value?.value
-                                                              .toString()
-                                                        });
+                                                        Navigator.pop(
+                                                            context,
+                                                            Car.fromMap({
+                                                              "id": id,
+                                                              "model":
+                                                                  modelName,
+                                                              "license":
+                                                                  licensePlate,
+                                                              "seats":
+                                                                  seats.value,
+                                                              "picture":
+                                                                  imageName ??
+                                                                      car?.picture,
+                                                              "color":
+                                                                  finalColor
+                                                                      .value
+                                                                      ?.value
+                                                            }));
                                                       }
                                                     },
                                                     child: const Text("Ok"));
@@ -841,7 +820,7 @@ class _DriverPageState extends State<DriverPage> {
                               }
                               return NetworkImageWithPlaceholder(
                                   typeOfImage: TypeOfImage.cars,
-                                  imageUrl: car?['picture']);
+                                  imageUrl: car?.picture);
                             }))))
           ]));
         }).then((value) {
@@ -852,104 +831,64 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   Widget _buildDriverScreen() {
-    var children = <Widget>[];
-    if (!driving) {
-      if (Provider.of<User>(context).cars.isEmpty) {
-        children = [
-          const SizedBox(height: 100),
-          const Padding(
-              padding: EdgeInsets.all(8.0),
-              child:
-                  Text("Add a car to continue", style: TextStyle(fontSize: 20)))
-        ];
+    return Builder(builder: (context) {
+      var children = <Widget>[];
+      if (!driving) {
+        if (context.watch<User>().cars.isEmpty) {
+          children = [
+            const SizedBox(height: 100),
+            const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text("Add a car to continue",
+                    style: TextStyle(fontSize: 20)))
+          ];
+        } else {
+          children
+            ..add(const SizedBox(height: 10))
+            ..add(const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Text("Select car", style: TextStyle(fontSize: 20))))
+            ..add(Padding(
+                padding: const EdgeInsets.all(8.0), child: _createCarList()));
+        }
+        children.add(Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: ElevatedButton(
+              onPressed: context.watch<User>().cars.length >= 3
+                  ? null
+                  : () async {
+                      final car = await _createCar();
+                      if (car != null) {
+                        SocketConnection.channel
+                            .add(jsonEncode({'type': typeAddCar, 'data': car}));
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                  shape: const CircleBorder(),
+                  backgroundColor: Colors.white,
+                  padding: const EdgeInsets.all(8.0)),
+              child: const Icon(Icons.add)),
+        ));
       } else {
-        children
-          ..add(const SizedBox(height: 10))
-          ..add(const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Text("Select car", style: TextStyle(fontSize: 20))))
-          ..add(Padding(
-              padding: const EdgeInsets.all(8.0), child: _createCarList()));
+        if (!inRadius) {
+          children.add(const Expanded(
+              child: Center(
+                  child: Padding(
+                      padding: EdgeInsets.all(20.0),
+                      child: Text(
+                          "The app will start looking for passengers once you get close to the bus stop",
+                          style: TextStyle(
+                              fontSize: 25.0, fontWeight: FontWeight.w600),
+                          textAlign: TextAlign.center)))));
+        } else {
+          return _createPassengersList();
+        }
       }
-      children.add(Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ElevatedButton(
-            onPressed: Provider.of<User>(context).cars.length >= 3
-                ? null
-                : () async {
-                    final car = await _createCar();
-                    if (car != null) {
-                      SocketConnection.channel
-                          .add(jsonEncode({'type': typeAddCar, 'data': car}));
-                    }
-                  },
-            style: ElevatedButton.styleFrom(
-                shape: const CircleBorder(),
-                backgroundColor: Colors.white,
-                padding: const EdgeInsets.all(8.0)),
-            child: const Icon(Icons.add)),
+      return Center(
+          child: Column(
+        children: children,
       ));
-    } else {
-      if (!inRadius) {
-        children.add(const Expanded(
-            child: Center(
-                child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: Text(
-                        "The app will start looking for passengers once you get close to the bus stop",
-                        style: TextStyle(
-                            fontSize: 25.0, fontWeight: FontWeight.w600),
-                        textAlign: TextAlign.center)))));
-      } else {
-        return _createPassengersList();
-      }
-    }
-    return Center(
-        child: Column(
-      children: children,
-    ));
-  }
-
-  Widget _buildFAB() {
-    return FloatingActionButton.large(
-        heroTag: 'FAB1',
-        tooltip: driving ? 'Stop driving' : 'Start driving',
-        shape: const CircleBorder(),
-        onPressed: selectedCar != null
-            ? () {
-                if (driving) {
-                  if (!_getPassengersStreamSubscription.isPaused) {
-                    _getPassengersStreamSubscription.pause();
-                  }
-                  if (!positionStream.isPaused) {
-                    positionStream.pause();
-                  }
-                  if (passengerAcceptTimer != null) {
-                    passengerAcceptTimer!.cancel();
-                  }
-                  if (refusedCooldownTimer != null) {
-                    refusedCooldownTimer!.cancel();
-                  }
-                  driving = false;
-                  inRadius = false;
-                  waitingForPassengers = false;
-                  passengersCancelled = false;
-                  requestTimeout = false;
-                  passengers = [];
-                  SocketConnection.channel
-                      .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
-                } else {
-                  if (positionStream.isPaused) {
-                    positionStream.resume();
-                  }
-                  driving = true;
-                  _sendDriver();
-                }
-                setState(() {});
-              }
-            : null,
-        child: Icon(!driving ? Icons.play_arrow_rounded : Icons.stop_rounded,
-            size: 50));
+    });
   }
 
   void _onPositionChange(Position? position) async {
@@ -1019,6 +958,9 @@ class _DriverPageState extends State<DriverPage> {
       distanceFilter: distanceFilter,
     )).listen(_onPositionChange);
     positionStream.pause();
+    WidgetsBinding.instance.addPostFrameCallback((_) async => suggestions =
+        (await DefaultAssetBundle.of(context).loadString('assets/cars.txt'))
+            .split('\n'));
   }
 
   @override
@@ -1064,6 +1006,11 @@ class _DriverPageState extends State<DriverPage> {
             child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Align(
-                    alignment: Alignment.bottomCenter, child: _buildFAB()))));
+                    alignment: Alignment.bottomCenter,
+                    child: LargeFAB(
+                        inProgress: driving,
+                        onPressed: selectedCar != null ? _toggleDriving : null,
+                        tooltip:
+                            driving ? 'Stop driving' : 'Start driving')))));
   }
 }

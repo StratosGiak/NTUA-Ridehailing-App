@@ -165,7 +165,7 @@ class _PassengerPageState extends State<PassengerPage>
             "latitude": coordinates!.latitude,
             "longitude": coordinates!.longitude
           },
-          'timestamp': coordinates!.timestamp!.toIso8601String()
+          'timestamp': coordinates!.timestamp.toIso8601String()
         }
       }));
     } else {
@@ -195,53 +195,19 @@ class _PassengerPageState extends State<PassengerPage>
     });
     Timer countdownDismissTimer = Timer(Duration(seconds: initalSeconds),
         () => Navigator.of(context, rootNavigator: true).pop(false));
-    bool? reply = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0)),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Padding(padding: EdgeInsets.all(5.0)),
-                const Padding(
-                    padding: EdgeInsets.all(10.0),
-                    child: Text("A driver is available. Accept them?",
-                        style: TextStyle(
-                            fontSize: 25.0, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center)),
-                ValueListenableBuilder(
-                    valueListenable: remainingSeconds,
-                    builder: (context, value, child) {
-                      return Text("$value",
-                          style: TextStyle(
-                              color: Colors.grey.shade800,
-                              fontSize: 30.0,
-                              fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center);
-                    }),
-                const Padding(padding: EdgeInsets.all(10.0)),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      IconButton.filled(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: ButtonStyle(
-                              backgroundColor: MaterialStatePropertyAll(
-                                  Colors.green.shade300)),
-                          iconSize: 55.0,
-                          icon: const Icon(Icons.check_rounded)),
-                      IconButton.filled(
-                          onPressed: () => Navigator.pop(context, false),
-                          style: ButtonStyle(
-                              backgroundColor: MaterialStatePropertyAll(
-                                  Colors.red.shade300)),
-                          iconSize: 55.0,
-                          icon: const Icon(Icons.close_rounded))
-                    ]),
-                const Padding(padding: EdgeInsets.all(10.0))
-              ]));
-        }).then((value) {
+    bool? reply = await acceptDialog(
+      context,
+      timerDisplay: ValueListenableBuilder(
+          valueListenable: remainingSeconds,
+          builder: (context, value, child) {
+            return Text("$value",
+                style: TextStyle(
+                    color: Colors.grey.shade800,
+                    fontSize: 30.0,
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center);
+          }),
+    ).then((value) {
       countdownSecTimer.cancel();
       countdownDismissTimer.cancel();
       return value;
@@ -264,7 +230,7 @@ class _PassengerPageState extends State<PassengerPage>
                 "latitude": coordinates!.latitude,
                 "longitude": coordinates!.longitude
               },
-              'timestamp': coordinates!.timestamp!.toIso8601String()
+              'timestamp': coordinates!.timestamp.toIso8601String()
             }
           }));
         });
@@ -334,7 +300,7 @@ class _PassengerPageState extends State<PassengerPage>
                         hasBorder: true,
                         height: 16,
                         width: 50,
-                        color: Color(int.parse(driver['car']['color'])),
+                        color: Color(driver['car']['color']),
                       )
                     : const Text('N/A')
               ],
@@ -364,12 +330,12 @@ class _PassengerPageState extends State<PassengerPage>
                     : const Text("N/A"),
               ],
             ),
-            // Text("Distance: ${(Geolocator.distanceBetween(
-            //       driver["coords"]["latitude"],
-            //       driver["coords"]["longitude"],
-            //       busStop.latitude,
-            //       busStop.longitude,
-            //     ) / 25).round() * 25}m")
+            Text("Distance: ${(Geolocator.distanceBetween(
+                  driver["coords"]["latitude"],
+                  driver["coords"]["longitude"],
+                  busStop.latitude,
+                  busStop.longitude,
+                ) / 25).round() * 25}m")
           ],
         ),
       ),
