@@ -14,49 +14,146 @@ import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/utilities.dart';
 import 'package:uni_pool/welcome.dart';
-import 'constants.dart';
+import '../constants.dart';
 import 'package:uni_pool/socket_handler.dart';
+
+class ImageWithPlaceholder extends StatelessWidget {
+  const ImageWithPlaceholder({
+    super.key,
+    this.imageProvider,
+    this.onTap,
+  });
+
+  final ImageProvider? imageProvider;
+  final void Function()? onTap;
+
+  @override
+  Widget build(context) {
+    Widget child = imageProvider != null
+        ? Ink(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: imageProvider!,
+              ),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              splashFactory: InkSplash.splashFactory,
+            ),
+          )
+        : Ink(
+            color: Colors.white,
+            child: Stack(
+              alignment: AlignmentDirectional.center,
+              children: [
+                Icon(
+                  Icons.add_photo_alternate,
+                  color: Colors.grey.shade600,
+                  size: 50,
+                ),
+                Positioned(
+                  bottom: 24,
+                  child: Text(
+                    'Add photo',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+                  ),
+                ),
+                Positioned.fill(
+                  child: InkWell(
+                    splashFactory: InkSplash.splashFactory,
+                    onTap: onTap,
+                  ),
+                ),
+              ],
+            ),
+          );
+    return SizedBox(
+      width: 140,
+      height: 140,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(70),
+        child: Material(
+          borderRadius: BorderRadius.circular(70),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
 
 class NetworkImageWithPlaceholder extends StatelessWidget {
   const NetworkImageWithPlaceholder({
     super.key,
     required this.typeOfImage,
     this.imageUrl,
+    this.onTap,
   });
 
   final String? imageUrl;
   final TypeOfImage typeOfImage;
+  final void Function()? onTap;
 
   @override
   Widget build(context) {
-    if (imageUrl != null) {
-      return CachedNetworkImage(
-        imageUrl: '$mediaHost/images/${typeOfImage.name}/$imageUrl',
-        placeholder: (_, __) => const CircularProgressIndicator(),
-        errorWidget: (_, __, ___) => const Icon(Icons.error_outline),
-      );
-    }
-    return Stack(
-      alignment: AlignmentDirectional.center,
-      children: [
-        Container(
-          height: 160,
-          width: 160,
-          color: Colors.grey.shade50,
-          child: Icon(
-            Icons.add_photo_alternate,
-            color: Colors.grey.shade600,
-            size: 50,
-          ),
+    Widget child = imageUrl != null
+        ? CachedNetworkImage(
+            imageUrl: '$mediaHost/images/${typeOfImage.name}/$imageUrl',
+            imageBuilder: (context, imageProvider) => Ink(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: imageProvider,
+                ),
+              ),
+              child: InkWell(
+                onTap: onTap,
+                splashFactory: InkSplash.splashFactory,
+              ),
+            ),
+            placeholder: (_, __) => const Center(
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            errorWidget: (_, __, ___) => const Icon(Icons.error_outline),
+          )
+        : Ink(
+            color: Colors.white,
+            child: Stack(
+              alignment: AlignmentDirectional.center,
+              children: [
+                Icon(
+                  Icons.add_photo_alternate,
+                  color: Colors.grey.shade600,
+                  size: 50,
+                ),
+                Positioned(
+                  bottom: 24,
+                  child: Text(
+                    'Add photo',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
+                  ),
+                ),
+                Positioned.fill(
+                  child: InkWell(
+                    splashFactory: InkSplash.splashFactory,
+                    onTap: onTap,
+                  ),
+                ),
+              ],
+            ),
+          );
+    return SizedBox(
+      width: 140,
+      height: 140,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(70),
+        child: Material(
+          borderRadius: BorderRadius.circular(70),
+          child: child,
         ),
-        Positioned(
-          bottom: 24,
-          child: Text(
-            'Add photo',
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 15),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -173,35 +270,26 @@ class UserProfileCard extends StatelessWidget {
               ),
             ],
           ),
-          IconButton(
-            onPressed: () async {
-              final result = await pickImage(imageQuality: userImageQuality);
-              if (result == null || result.mimeType == null) return;
-              final newImage = await uploadImage(
-                TypeOfImage.users,
-                result.imagePath!,
-                result.mimeType!,
-              );
-              if (newImage == null) return;
-              if (!context.mounted) return;
-              context.read<User>().setUserPicture(newImage);
-              SocketConnection.channel.add(
-                jsonEncode({'type': typeUpdateUserPicture, 'data': newImage}),
-              );
-            },
-            iconSize: 40,
-            icon: CircleAvatar(
-              radius: 70,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(70),
-                child: Selector<User, String?>(
-                  selector: (_, user) => user.picture,
-                  builder: (_, value, __) => NetworkImageWithPlaceholder(
-                    imageUrl: value,
-                    typeOfImage: TypeOfImage.users,
-                  ),
-                ),
-              ),
+          Selector<User, String?>(
+            selector: (_, user) => user.picture,
+            builder: (_, value, __) => NetworkImageWithPlaceholder(
+              typeOfImage: TypeOfImage.users,
+              imageUrl: value,
+              onTap: () async {
+                final result = await pickImage(imageQuality: userImageQuality);
+                if (result == null || result.mimeType == null) return;
+                final newImage = await uploadImage(
+                  TypeOfImage.users,
+                  result.imagePath!,
+                  result.mimeType!,
+                );
+                if (newImage == null) return;
+                if (!context.mounted) return;
+                context.read<User>().setUserPicture(newImage);
+                SocketConnection.channel.add(
+                  jsonEncode({'type': typeUpdateUserPicture, 'data': newImage}),
+                );
+              },
             ),
           ),
         ],
@@ -262,6 +350,7 @@ class UserImageButton extends StatelessWidget {
         builder: (_, value, __) => UserAvatar(url: value),
         selector: (_, user) => user.picture,
       ),
+      tooltip: 'Account info',
     );
   }
 }
@@ -362,7 +451,7 @@ class CustomMap extends StatefulWidget {
     required this.showArrived,
     required this.onMove,
     required this.onPressGPS,
-    required this.centerGPS,
+    required this.followGPS,
     required this.moveCameraController,
     this.polylinePoints,
   });
@@ -372,7 +461,7 @@ class CustomMap extends StatefulWidget {
   final List<Marker> markers;
   final Position? coordinates;
   final bool showArrived;
-  final bool centerGPS;
+  final bool followGPS;
   final List<LatLng>? polylinePoints;
   final void Function() onMove;
   final void Function() onPressGPS;
@@ -423,7 +512,8 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
     return FlutterMap(
       mapController: widget.mapController,
       options: MapOptions(
-        initialCenter: const LatLng(37.9923, 23.7764),
+        initialCenter:
+            LatLng(widget.coordinates!.latitude, widget.coordinates!.longitude),
         initialZoom: 14.5,
         minZoom: 14,
         maxZoom: 16,
@@ -487,7 +577,7 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
               padding: const EdgeInsets.all(5),
             ),
             child: Icon(
-              widget.centerGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
+              widget.followGPS ? Icons.gps_fixed : Icons.gps_not_fixed,
               size: 30,
             ),
           ),
@@ -545,6 +635,38 @@ class LargeFAB extends StatelessWidget {
         inProgress ? Icons.stop_rounded : Icons.play_arrow_rounded,
         size: 50,
       ),
+    );
+  }
+}
+
+class RatingBarWithCount extends StatelessWidget {
+  const RatingBarWithCount({
+    super.key,
+    required this.user,
+  });
+
+  final Map<String, dynamic> user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RatingBarIndicator(
+          itemSize: 22.0,
+          rating: user['ratings_sum'] / user['ratings_count'],
+          itemBuilder: (context, index) => const Icon(
+            Icons.star_rounded,
+            color: Colors.amber,
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 3.0),
+        ),
+        Text(
+          "(${user['ratings_count']})",
+        ),
+      ],
     );
   }
 }

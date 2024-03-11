@@ -85,3 +85,7 @@ class User with ChangeNotifier {
     notifyListeners();
   }
 }
+
+// class Passenger extends User {}
+
+// class Driver extends User {}

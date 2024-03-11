@@ -2,11 +2,8 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:uni_pool/constants.dart';
 import 'package:uni_pool/utilities.dart';
 import 'package:uni_pool/welcome.dart';
@@ -14,7 +11,8 @@ import 'package:uni_pool/socket_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:uni_pool/widgets.dart';
+import 'package:uni_pool/widgets/common_widgets.dart';
+import 'package:uni_pool/widgets/passenger_widgets.dart';
 
 class PassengerPage extends StatefulWidget {
   const PassengerPage({super.key});
@@ -32,11 +30,11 @@ class _PassengerPageState extends State<PassengerPage>
   final moveCameraController = MoveCameraController();
   Position? coordinates;
   bool inRadius = false;
-  bool requestTimeout = false;
+  bool requestTimedOut = false;
   bool driverRefused = false;
   bool driverArrived = false;
   bool showArrived = false;
-  bool followDriver = true;
+  bool followDriver = false;
   Timer? arrivedTimer;
   Timer? refusedCooldownTimer;
 
@@ -61,6 +59,7 @@ class _PassengerPageState extends State<PassengerPage>
           driverArrived = false;
           driverPositions.clear();
           driverRefused = true;
+          requestTimedOut = false;
         } else {
           if (driverArrived) {
             final driverPassengerDistance = Geolocator.distanceBetween(
@@ -125,12 +124,13 @@ class _PassengerPageState extends State<PassengerPage>
         break;
       case typePingDriver:
         if (data == null) {
-          requestTimeout = true;
+          requestTimedOut = true;
         }
         driver = data;
         break;
       case typeArrivedDestination:
         if (driver == null) return;
+        followDriver = false;
         HapticFeedback.heavyImpact();
         moveCameraController.moveCamera(
           LatLng(coordinates!.latitude, coordinates!.longitude),
@@ -238,18 +238,18 @@ class _PassengerPageState extends State<PassengerPage>
     );
     countdownSecTimer.cancel();
     countdownDismissTimer.cancel();
-    reply ??= false;
-    if (reply) {
+    if (reply ?? false) {
       SocketConnection.channel
           .add(jsonEncode({'type': typePingDriver, 'data': true}));
     } else {
       if (remainingSeconds.value == 0) {
-        requestTimeout = true;
+        requestTimedOut = true;
       } else {
         SocketConnection.channel
             .add(jsonEncode({'type': typeStopPassenger, 'data': {}}));
-        refusedCooldownTimer = Timer(const Duration(seconds: 30), () {
-          SocketConnection.channel.add(
+        refusedCooldownTimer = Timer(
+          const Duration(seconds: 30),
+          () => SocketConnection.channel.add(
             jsonEncode({
               'type': typeNewPassenger,
               'data': {
@@ -260,260 +260,12 @@ class _PassengerPageState extends State<PassengerPage>
                 'timestamp': coordinates!.timestamp.toIso8601String(),
               },
             }),
-          );
-        });
+          ),
+        );
       }
       SocketConnection.channel
           .add(jsonEncode({'type': typePingDriver, 'data': false}));
       setState(() {});
-    }
-  }
-
-  Widget _showDriver(Map<String, dynamic>? driver) {
-    if (driver == null) {
-      return const Text('Driver not found');
-    }
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: ListTile(
-        onTap: () {
-          followDriver = true;
-          moveCameraController.moveCamera(
-            LatLng(
-              driver['coords']['latitude'],
-              driver['coords']['longitude'],
-            ),
-            16,
-          );
-        },
-        onLongPress: () {},
-        leading: CircleAvatar(
-          radius: 25.0,
-          child: InkWell(
-            onTap: () {
-              _showDriverPictures();
-            },
-            onLongPress: () {
-              _showDriverPictures();
-            },
-            child: Ink(
-              color: Colors.black,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(25.0),
-                child: driver['picture'] != null
-                    ? CachedNetworkImage(
-                        imageUrl:
-                            '$mediaHost/images/users/${driver['picture']}',
-                        placeholder: (context, url) =>
-                            Image.asset('assets/images/blank_profile.png'),
-                        errorWidget: (context, url, error) =>
-                            Image.asset('assets/images/blank_profile.png'),
-                      )
-                    : Image.asset('assets/images/blank_profile.png'),
-              ),
-            ),
-          ),
-        ),
-        tileColor: Colors.lightBlue,
-        title: Text("${driver['name']}"),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text("Model: ${driver['car']['model']}"),
-            Text("License plate: ${driver['car']['license']}"),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Color:'),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 4.0)),
-                driver['car']['color'] != null
-                    ? ColorIndicator(
-                        hasBorder: true,
-                        height: 16,
-                        width: 50,
-                        color: Color(driver['car']['color']),
-                      )
-                    : const Text('N/A'),
-              ],
-            ),
-            Row(
-              children: [
-                const Text('Rating:'),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 3.0)),
-                driver['ratings_count'] > 3
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          RatingBarIndicator(
-                            rating:
-                                driver['ratings_sum'] / driver['ratings_count'],
-                            itemSize: 22.0,
-                            itemBuilder: (context, index) => const Icon(
-                              Icons.star_rounded,
-                              color: Colors.amber,
-                            ),
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 3.0),
-                          ),
-                          Text("(${driver['ratings_count']})"),
-                        ],
-                      )
-                    : const Text('N/A'),
-              ],
-            ),
-            Text("Distance: ${(Geolocator.distanceBetween(
-                  driver["coords"]["latitude"],
-                  driver["coords"]["longitude"],
-                  busStop.latitude,
-                  busStop.longitude,
-                ) / 25).round() * 25}m"),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showDriverPictures() {
-    if (driver == null) return;
-    List<Widget> images = [];
-    if (driver!['picture'] != null) {
-      images.add(
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: FittedBox(
-            child: CachedNetworkImage(
-              imageUrl: '$mediaHost/images/users/${driver!['picture']}',
-              placeholder: (context, url) => const CircularProgressIndicator(),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            ),
-          ),
-        ),
-      );
-    }
-    if (driver!['car']['picture'] != null) {
-      images.add(
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: FittedBox(
-            child: CachedNetworkImage(
-              imageUrl: '$mediaHost/images/cars/${driver!['car']['picture']}',
-              placeholder: (context, url) => const CircularProgressIndicator(),
-              errorWidget: (context, url, error) => const Icon(Icons.error),
-            ),
-          ),
-        ),
-      );
-    }
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          insetPadding: EdgeInsets.zero,
-          child: ConstrainedBox(
-            constraints: BoxConstraints.tight(
-              Size.square(MediaQuery.of(context).size.width),
-            ),
-            child: PageView(
-              children: images,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPassengerScreen() {
-    if (!inRadius) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(20.0),
-          child: Text(
-            'The app will start looking for drivers once you get close to the bus stop',
-            style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-    if (driver == null) {
-      var children = [
-        Text(
-          "Searching for${requestTimeout ? " more" : ""} drivers...",
-          style: const TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
-        ),
-        const Padding(padding: EdgeInsets.all(20.0)),
-        const CircularProgressIndicator(),
-      ];
-      if (driverRefused) {
-        children.insert(
-          0,
-          const Text(
-            'Ride cancelled',
-            style: TextStyle(
-              fontSize: 22.0,
-            ),
-          ),
-        );
-      } else if (requestTimeout) {
-        children.insert(
-          0,
-          const Text(
-            "You didn't get the driver in time",
-            style: TextStyle(
-              fontSize: 22.0,
-            ),
-          ),
-        );
-      }
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: children,
-        ),
-      );
-    } else {
-      return Column(
-        children: [
-          Expanded(
-            flex: 1,
-            child: CustomMap(
-              typeOfUser: TypeOfUser.passenger,
-              mapController: mapController,
-              markers: usersToMarkers([if (driver != null) driver!]),
-              coordinates: coordinates,
-              showArrived: showArrived,
-              onMove: () => setState(() => followDriver = false),
-              moveCameraController: moveCameraController,
-              onPressGPS: () => moveCameraController.moveCamera(
-                LatLng(coordinates!.latitude, coordinates!.longitude),
-                mapController.camera.zoom,
-              ),
-              centerGPS: true,
-              polylinePoints: driverPositions.toList(),
-            ),
-          ),
-          Container(
-            color: Colors.white,
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Driver',
-                    style: TextStyle(fontSize: 20),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                _showDriver(driver),
-              ],
-            ),
-          ),
-        ],
-      );
     }
   }
 
@@ -543,9 +295,7 @@ class _PassengerPageState extends State<PassengerPage>
   void dispose() {
     positionStream.cancel();
     mapController.dispose();
-    if (refusedCooldownTimer != null) {
-      refusedCooldownTimer!.cancel();
-    }
+    refusedCooldownTimer?.cancel();
     super.dispose();
   }
 
@@ -564,7 +314,24 @@ class _PassengerPageState extends State<PassengerPage>
           const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
         ],
       ),
-      body: _buildPassengerScreen(),
+      body: !inRadius || driver == null
+          ? PassengerStatusScreen(
+              inRadius: inRadius,
+              driverRefused: driverRefused,
+              requestTimedOut: requestTimedOut,
+            )
+          : MapScreen(
+              context: context,
+              driver: driver!,
+              mapController: mapController,
+              coordinates: coordinates,
+              showArrived: showArrived,
+              onMove: () => setState(() => followDriver = false),
+              moveCameraController: moveCameraController,
+              onPressGPS: () => setState(() => followDriver = true),
+              followGPS: followDriver,
+              driverPositions: driverPositions,
+            ),
     );
   }
 }

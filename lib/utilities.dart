@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +16,7 @@ import 'package:provider/provider.dart';
 import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/socket_handler.dart';
-import 'package:uni_pool/widgets.dart';
+import 'package:uni_pool/widgets/common_widgets.dart';
 import 'package:mime/mime.dart';
 import 'constants.dart';
 
@@ -412,34 +413,111 @@ Future<bool> stopDialog(
   return reply ?? false;
 }
 
-List<Marker> usersToMarkers(List<Map<String, dynamic>> users) {
-  return users
-      .map(
-        (user) => Marker(
-          height: 22,
-          width: 22,
-          point:
-              LatLng(user['coords']['latitude'], user['coords']['longitude']),
-          child: Stack(
-            children: [
-              Container(
-                decoration: const BoxDecoration(shape: BoxShape.circle),
+List<Marker> usersToMarkers(List<Map<String, dynamic>> users) => users
+    .map(
+      (user) => Marker(
+        height: 22,
+        width: 22,
+        point: LatLng(user['coords']['latitude'], user['coords']['longitude']),
+        child: Stack(
+          children: [
+            Container(
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: user['car'] != null && user['car']['color'] != null
+                    ? Color(user['car']['color'])
+                    : colors[int.parse(user['id'][user['id'].length - 1])],
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: const [
+                  BoxShadow(spreadRadius: 0.1, blurRadius: 3),
+                ],
               ),
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: user['car'] != null && user['car']['color'] != null
-                      ? Color(user['car']['color'])
-                      : colors[user['id'][user['id'].length - 1]],
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(spreadRadius: 0.1, blurRadius: 3),
-                  ],
+            ),
+          ],
+        ),
+      ),
+    )
+    .toList();
+
+void showPassengerPicture(BuildContext context, String pictureURL) =>
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: ConstrainedBox(
+            constraints: BoxConstraints.tight(
+              Size.square(MediaQuery.of(context).size.width),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: FittedBox(
+                child: CachedNetworkImage(
+                  imageUrl: '$mediaHost/images/users/$pictureURL',
+                  placeholder: (context, url) =>
+                      const CircularProgressIndicator(),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-            ],
+            ),
+          ),
+        );
+      },
+    );
+
+void showDriverPictures(
+  BuildContext context,
+  String? userPicture,
+  String? carPicture,
+) {
+  List<Widget> images = [
+    if (userPicture != null)
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: FittedBox(
+          child: CachedNetworkImage(
+            imageUrl: '$mediaHost/images/users/$userPicture',
+            placeholder: (context, url) => const CircularProgressIndicator(),
+            errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
         ),
-      )
-      .toList();
+      ),
+    if (carPicture != null)
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: FittedBox(
+          child: CachedNetworkImage(
+            imageUrl: '$mediaHost/images/cars/$carPicture',
+            placeholder: (context, url) => const CircularProgressIndicator(),
+            errorWidget: (context, url, error) => const Icon(Icons.error),
+          ),
+        ),
+      ),
+  ];
+  showDialog<void>(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: ConstrainedBox(
+          constraints: BoxConstraints.tight(
+            Size.square(MediaQuery.of(context).size.width),
+          ),
+          child: PageView(
+            controller: PageController(viewportFraction: 0.85),
+            children: images,
+          ),
+        ),
+      );
+    },
+  );
 }

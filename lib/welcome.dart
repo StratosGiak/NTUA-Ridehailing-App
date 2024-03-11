@@ -11,7 +11,7 @@ import 'package:uni_pool/utilities.dart';
 import 'package:uni_pool/webview.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/widgets.dart';
+import 'package:uni_pool/widgets/common_widgets.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
@@ -44,7 +44,7 @@ class _WelcomePageState extends State<WelcomePage> {
       _connected = false;
       _loggedIn = false;
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _navigateToMain(typeOfUser) {
