@@ -88,7 +88,6 @@ class _DriverPageState extends State<DriverPage> {
           passengers
               .removeWhere((element) => element['id'] == data['cancelled']);
           if (passengers.isEmpty) {
-            debugPrint('DELETED');
             passengersCancelled = true;
             waitingForPassengers = false;
             arrivedAtBusStop = false;
@@ -493,6 +492,7 @@ class _DriverPageState extends State<DriverPage> {
             100 &&
         !arrivedAtBusStop) {
       arrivedAtBusStop = true;
+      followDriver = true;
       showArrived = true;
       moveCameraController.moveCamera(busStop, 15.5);
       arrivedTimer = Timer(
@@ -513,6 +513,7 @@ class _DriverPageState extends State<DriverPage> {
       arrivedAtUniversity = true;
       followDriver = false;
       _getPassengersStreamSubscription.cancel();
+      positionStream.cancel();
       moveCameraController.moveCamera(
         LatLng(coordinates!.latitude, coordinates!.longitude),
         15.5,

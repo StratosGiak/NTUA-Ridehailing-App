@@ -512,8 +512,7 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
     return FlutterMap(
       mapController: widget.mapController,
       options: MapOptions(
-        initialCenter:
-            LatLng(widget.coordinates!.latitude, widget.coordinates!.longitude),
+        initialCenter: busStop,
         initialZoom: 14.5,
         minZoom: 14,
         maxZoom: 16,

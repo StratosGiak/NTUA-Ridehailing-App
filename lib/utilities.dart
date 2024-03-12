@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
@@ -212,60 +213,64 @@ Future<Color?> colorWheelDialog(BuildContext context, Color? initialColor) {
 }
 
 Future<bool?> acceptDialog(BuildContext context, {Widget? timerDisplay}) {
-  return showDialog<bool>(
+  final dialogRoute = DialogRoute<bool?>(
     context: context,
     barrierDismissible: false,
-    builder: (context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(padding: EdgeInsets.all(5.0)),
-            const Padding(
-              padding: EdgeInsets.all(10.0),
-              child: Text(
-                'A driver is available. Accept them?',
-                style: TextStyle(
-                  fontSize: 25.0,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
+    builder: (context) => Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(padding: EdgeInsets.all(5.0)),
+          const Padding(
+            padding: EdgeInsets.all(10.0),
+            child: Text(
+              'A driver is available. Accept them?',
+              style: TextStyle(
+                fontSize: 25.0,
+                fontWeight: FontWeight.bold,
               ),
+              textAlign: TextAlign.center,
             ),
-            if (timerDisplay != null) timerDisplay,
-            const Padding(padding: EdgeInsets.all(10.0)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                IconButton.filled(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ButtonStyle(
-                    backgroundColor:
-                        MaterialStatePropertyAll(Colors.green.shade300),
-                  ),
-                  iconSize: 55.0,
-                  icon: const Icon(Icons.check_rounded),
+          ),
+          if (timerDisplay != null) timerDisplay,
+          const Padding(padding: EdgeInsets.all(10.0)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              IconButton.filled(
+                onPressed: () => Navigator.pop(context, true),
+                style: ButtonStyle(
+                  backgroundColor:
+                      MaterialStatePropertyAll(Colors.green.shade300),
                 ),
-                IconButton.filled(
-                  onPressed: () => Navigator.pop(context, false),
-                  style: ButtonStyle(
-                    backgroundColor:
-                        MaterialStatePropertyAll(Colors.red.shade300),
-                  ),
-                  iconSize: 55.0,
-                  icon: const Icon(Icons.close_rounded),
+                iconSize: 55.0,
+                icon: const Icon(Icons.check_rounded),
+              ),
+              IconButton.filled(
+                onPressed: () => Navigator.pop(context, false),
+                style: ButtonStyle(
+                  backgroundColor:
+                      MaterialStatePropertyAll(Colors.red.shade300),
                 ),
-              ],
-            ),
-            const Padding(padding: EdgeInsets.all(10.0)),
-          ],
-        ),
-      );
-    },
+                iconSize: 55.0,
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+          const Padding(padding: EdgeInsets.all(10.0)),
+        ],
+      ),
+    ),
   );
+  if (ModalRoute.of(context)?.isCurrent != true) {
+    Navigator.pop(context);
+    return Navigator.push<bool?>(context, dialogRoute);
+  } else {
+    return Navigator.push<bool?>(context, dialogRoute);
+  }
 }
 
 Future<List<double>?> arrivedDialog({
@@ -309,74 +314,92 @@ Future<List<double>?> arrivedDialog({
       },
     ),
   );
-  await showDialog<List<double>>(
+  final dialogRoute = DialogRoute<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (context) {
-      return Dialog(
-        insetPadding:
-            const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(padding: EdgeInsets.symmetric(vertical: 14.0)),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'You have reached your destination!',
-                style: TextStyle(
-                  fontSize: 26.0,
-                  fontWeight: FontWeight.w500,
+    builder: (context) => Dialog(
+      insetPadding:
+          const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(padding: EdgeInsets.symmetric(vertical: 14.0)),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              'You have reached your destination!',
+              style: TextStyle(
+                fontSize: 26.0,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              "Please rate your experience with the ${typeOfUser.name}${users.length == 1 ? '' : 's'} (optional)",
+              style: const TextStyle(fontSize: 16.0),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
+          ListView.separated(
+            shrinkWrap: true,
+            itemCount: users.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text("${users[index]['name']}"),
+                leading: UserAvatar(
+                  url: users[index]['picture'],
+                  size: 26.0,
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                "Please rate your experience with the ${typeOfUser.name}${users.length == 1 ? '' : 's'} (optional)",
-                style: const TextStyle(fontSize: 16.0),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-            ListView.separated(
-              shrinkWrap: true,
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text("${users[index]['name']}"),
-                  leading: UserAvatar(
-                    url: users[index]['picture'],
-                    size: 26.0,
+                subtitle: ratingBars[index],
+              );
+            },
+            separatorBuilder: (context, index) =>
+                const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text(
+                      'Submit',
+                      style: TextStyle(fontSize: 18.0),
+                    ),
                   ),
-                  subtitle: ratingBars[index],
-                );
-              },
-              separatorBuilder: (context, index) =>
-                  const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12.0),
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Submit',
-                    style: TextStyle(fontSize: 18.0),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(fontSize: 18.0),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-      );
-    },
+          ),
+        ],
+      ),
+    ),
   );
+  bool? reply;
+  if (ModalRoute.of(context)?.isCurrent != true) {
+    Navigator.pop(context);
+    reply = await Navigator.push<bool>(context, dialogRoute);
+  } else {
+    reply = await Navigator.push<bool>(context, dialogRoute);
+  }
+  if (!(reply ?? false)) return null;
   final ratingsList = ratings.map((e) => e.value).toList();
-  if (ratingsList.any((element) => element != 0)) return null;
+  if (ratingsList.every((element) => element == 0)) return null;
   return ratingsList;
 }
 
@@ -421,20 +444,34 @@ List<Marker> usersToMarkers(List<Map<String, dynamic>> users) => users
         point: LatLng(user['coords']['latitude'], user['coords']['longitude']),
         child: Stack(
           children: [
-            Container(
-              decoration: const BoxDecoration(shape: BoxShape.circle),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: user['car'] != null && user['car']['color'] != null
-                    ? Color(user['car']['color'])
-                    : colors[int.parse(user['id'][user['id'].length - 1])],
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: const [
-                  BoxShadow(spreadRadius: 0.1, blurRadius: 3),
-                ],
-              ),
+            Builder(
+              builder: (context) {
+                final color =
+                    user['car'] != null && user['car']['color'] != null
+                        ? Color(user['car']['color'])
+                        : colors[int.parse(user['id'][user['id'].length - 1])];
+                // final luma = sqrt(
+                //   color.red * color.red * 0.299 +
+                //       color.green * color.green * 0.587 +
+                //       color.blue * color.blue * 0.114,
+                // ).toInt();
+                return Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color,
+                    border: Border.all(
+                      color: Colors.white,
+                      // color.computeLuminance() < 0.5
+                      //     ? Colors.white
+                      //     : Colors.black,
+                      width: 3,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(spreadRadius: 0.1, blurRadius: 3),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),

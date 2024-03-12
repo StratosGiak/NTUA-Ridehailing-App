@@ -107,6 +107,7 @@ class _PassengerPageState extends State<PassengerPage>
             moveCameraController.moveCamera(pos, 15.5);
             driverArrived = true;
             showArrived = true;
+            followDriver = true;
             arrivedTimer = Timer(const Duration(seconds: 5), () {
               showArrived = false;
               setState(() {});
@@ -123,15 +124,14 @@ class _PassengerPageState extends State<PassengerPage>
         _acceptDriver();
         break;
       case typePingDriver:
-        if (data == null) {
-          requestTimedOut = true;
-        }
+        if (data == null) requestTimedOut = true;
         driver = data;
         break;
       case typeArrivedDestination:
         if (driver == null) return;
-        followDriver = false;
+        positionStream.cancel();
         HapticFeedback.heavyImpact();
+        followDriver = false;
         moveCameraController.moveCamera(
           LatLng(coordinates!.latitude, coordinates!.longitude),
           15.5,
