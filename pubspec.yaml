@@ -35,6 +35,7 @@ dependencies:
   http:
   http_parser:
   cached_network_image:
+  flutter_cache_manager:
   web_socket_channel:
   webview_flutter:
   latlong2:

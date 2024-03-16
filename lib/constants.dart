@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -58,6 +59,8 @@ const typeAddCar = '!ADDCAR';
 const typeUpdateCar = '!UPDATECAR';
 const typeUpdateUserPicture = '!UPDATEUSERPICTURE';
 const typeDeletePicture = '!DELETEPICTURE';
+const typeDeleteUserPicture = '!DELETEUSERPICTURE';
+const typeDeleteCarPicture = '!DELETECARPICTURE';
 const typeRemoveCar = '!REMOVECAR';
 const typeGetDriver = '!GETDRIVER';
 const typeGetPassengers = '!GETPASSENGERS';
@@ -66,3 +69,16 @@ const typePingDriver = '!PINGDRIVER';
 const typeBadRequest = '!BADREQUEST';
 const typeMessage = '!MESSAGE';
 const typeSignout = '!SIGNOUT';
+
+class CustomCacheManager extends CacheManager with ImageCacheManager {
+  static const key = 'libCustomCachedImageData';
+
+  static final CustomCacheManager _instance = CustomCacheManager._();
+
+  factory CustomCacheManager() {
+    return _instance;
+  }
+
+  CustomCacheManager._()
+      : super(Config(key, stalePeriod: const Duration(seconds: 10)));
+}

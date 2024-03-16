@@ -4,7 +4,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:uni_pool/constants.dart';
+import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/utilities.dart';
 import 'package:uni_pool/welcome.dart';
 import 'package:uni_pool/socket_handler.dart';
@@ -37,6 +39,17 @@ class _PassengerPageState extends State<PassengerPage>
   bool followDriver = false;
   Timer? arrivedTimer;
   Timer? refusedCooldownTimer;
+
+  void connectionHandler(String message) {
+    if (!mounted) return;
+    if (message == 'done' || message == 'error') {
+      context.read<User>().setUser(null);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomePage()),
+      );
+    }
+  }
 
   void socketPassengerHandler(message) async {
     final decoded = jsonDecode(message);
@@ -157,6 +170,17 @@ class _PassengerPageState extends State<PassengerPage>
           context,
           MaterialPageRoute(builder: (context) => const WelcomePage()),
         );
+        break;
+      case typeDeleteUserPicture:
+        ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
+        context.read<User>().setUserPicture(null);
+        break;
+      case typeDeleteCarPicture:
+        ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
+        context.read<User>().setCarPicture(data.toString(), null);
+        break;
+      default:
+        debugPrint('Invalid type: $type');
         break;
     }
     if (!mounted) return;
@@ -282,6 +306,7 @@ class _PassengerPageState extends State<PassengerPage>
   void initState() {
     super.initState();
     SocketConnection.receiveSubscription.onData(socketPassengerHandler);
+    SocketConnection.connectionSubscription.onData(connectionHandler);
     positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -305,7 +330,7 @@ class _PassengerPageState extends State<PassengerPage>
       appBar: AppBar(
         title: const Text('Passenger'),
         actions: [
-          SwitchUserButton(
+          SwitchModeButton(
             context: context,
             skip: driver == null || !inRadius,
             typeOfUser: TypeOfUser.passenger,

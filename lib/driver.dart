@@ -54,6 +54,17 @@ class _DriverPageState extends State<DriverPage> {
   Position? coordinates;
   Timer? passengerAcceptTimer;
 
+  void connectionHandler(String message) {
+    if (!mounted) return;
+    if (message == 'done' || message == 'error') {
+      context.read<User>().setUser(null);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const WelcomePage()),
+      );
+    }
+  }
+
   void socketDriverHandler(String message) {
     final decoded = jsonDecode(message);
     if (decoded['type'] == null ||
@@ -96,6 +107,7 @@ class _DriverPageState extends State<DriverPage> {
             }
           }
         } else {
+          if (data['id'] == null) return;
           final index =
               passengers.indexWhere((element) => element['id'] == data['id']);
           if (index == -1) {
@@ -111,6 +123,14 @@ class _DriverPageState extends State<DriverPage> {
       case typeRemoveCar:
         selectedCar.value = null;
         context.read<User>().removeCar(data);
+        break;
+      case typeDeleteUserPicture:
+        ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
+        context.read<User>().setUserPicture(null);
+        break;
+      case typeDeleteCarPicture:
+        ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
+        context.read<User>().setCarPicture(data.toString(), null);
         break;
       default:
         debugPrint('Invalid type: $type');
@@ -549,6 +569,7 @@ class _DriverPageState extends State<DriverPage> {
   void initState() {
     super.initState();
     SocketConnection.receiveSubscription.onData(socketDriverHandler);
+    SocketConnection.connectionSubscription.onData(connectionHandler);
     _getPassengersStreamSubscription = _getPassengersStream.listen((event) {
       SocketConnection.channel
           .add(jsonEncode({'type': typeGetPassengers, 'data': {}}));
@@ -589,7 +610,7 @@ class _DriverPageState extends State<DriverPage> {
         title: const Text('Driver'),
         leading: Visibility(
           visible: passengers.isNotEmpty,
-          child: SwitchUserButton(
+          child: SwitchModeButton(
             context: context,
             skip: passengers.isEmpty || !inRadius,
             typeOfUser: TypeOfUser.driver,
@@ -597,7 +618,7 @@ class _DriverPageState extends State<DriverPage> {
           ),
         ),
         actions: [
-          SwitchUserButton(
+          SwitchModeButton(
             context: context,
             skip: passengers.isEmpty || !inRadius,
             typeOfUser: TypeOfUser.driver,

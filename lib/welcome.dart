@@ -29,22 +29,38 @@ class _WelcomePageState extends State<WelcomePage> {
     final type = decoded['type'];
     final data = decoded['data'];
     debugPrint('received $data');
-    if (type == typeLogin) {
-      context.read<User>().setUser(data);
-      SecureStorage.storeValueSecure(LoginInfo.id, data['id']);
-      SecureStorage.storeValueSecure(LoginInfo.name, data['name']);
-      SecureStorage.storeValueSecure(LoginInfo.token, data['token']);
-      _loggedIn = true;
+    switch (type) {
+      case typeLogin:
+        if (data['id'] == null || data['name'] == null) return;
+        context.read<User>().setUser(data);
+        SecureStorage.storeValueSecure(LoginInfo.id, data['id']);
+        SecureStorage.storeValueSecure(LoginInfo.name, data['name']);
+        SecureStorage.storeValueSecure(LoginInfo.token, data['token']);
+        _loggedIn = true;
+        break;
+      case typeDeleteUserPicture:
+        ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
+        context.read<User>().setUserPicture(null);
+        break;
+      case typeDeleteCarPicture:
+        ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
+        context.read<User>().setCarPicture(data.toString(), null);
+        break;
+      default:
+        debugPrint('Invalid type: $type');
+        break;
     }
     setState(() {});
   }
 
   void _connectionHandler(message) async {
+    if (!mounted) return;
     if (message == 'done' || message == 'error') {
+      context.read<User>().setUser(null);
       _connected = false;
       _loggedIn = false;
+      setState(() {});
     }
-    if (mounted) setState(() {});
   }
 
   void _navigateToMain(typeOfUser) {
@@ -117,6 +133,7 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   void initState() {
     super.initState();
+
     SocketConnection.receiveSubscription.onData(_socketLoginHandler);
     SocketConnection.connectionSubscription.onData(_connectionHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) async {

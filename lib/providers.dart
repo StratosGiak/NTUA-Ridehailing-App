@@ -70,7 +70,7 @@ class User with ChangeNotifier {
     notifyListeners();
   }
 
-  void setUserPicture(String newPicture) {
+  void setUserPicture(String? newPicture) {
     picture = newPicture;
     notifyListeners();
   }
@@ -82,6 +82,11 @@ class User with ChangeNotifier {
 
   void removeCar(String carID) {
     cars.remove(carID);
+    notifyListeners();
+  }
+
+  void setCarPicture(String id, String? picture) {
+    if (cars[id] != null) cars[id]!.picture = picture;
     notifyListeners();
   }
 }

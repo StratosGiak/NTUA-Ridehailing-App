@@ -196,10 +196,13 @@ class DriverStatusScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!inRadius) {
       return const Center(
-        child: Text(
-          'The app will start looking for passengers once you get close to the bus stop',
-          style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: Text(
+            'The app will start looking for passengers once you get close to the bus stop',
+            style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -318,6 +321,7 @@ class PassengerInfoBox extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget picture(int index) => passengers[index]['picture'] != null
         ? CachedNetworkImage(
+            cacheManager: CustomCacheManager(),
             imageUrl: "$mediaHost/images/users/${passengers[index]['picture']}",
             imageBuilder: (context, imageProvider) => Ink(
               decoration: BoxDecoration(

@@ -30,7 +30,7 @@ class PassengerStatusScreen extends StatelessWidget {
           padding: EdgeInsets.all(20.0),
           child: Text(
             'The app will start looking for drivers once you get close to the bus stop',
-            style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
+            style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
         ),
@@ -74,8 +74,10 @@ class DriverInfoBox extends StatelessWidget {
     final picture =
         driver['picture'] != null || driver['car']['picture'] != null
             ? CachedNetworkImage(
-                imageUrl:
-                    "$mediaHost/images/users/${driver['picture'] ?? driver['car']['picture']}",
+                cacheManager: CustomCacheManager(),
+                imageUrl: driver['car']['picture'] != null
+                    ? "$mediaHost/images/cars/${driver['car']['picture']}"
+                    : "$mediaHost/images/users/${driver['picture']}",
                 imageBuilder: (context, imageProvider) => Ink(
                   decoration: BoxDecoration(
                     image: DecorationImage(
@@ -112,14 +114,13 @@ class DriverInfoBox extends StatelessWidget {
         padding: const EdgeInsets.all(8.0),
         child: ListTile(
           onTap: onTileTap,
-          onLongPress: () {},
           leading: SizedBox(
             width: 55,
             height: 55,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(25.0),
+              borderRadius: BorderRadius.circular(30.0),
               child: Material(
-                borderRadius: BorderRadius.circular(25.0),
+                borderRadius: BorderRadius.circular(30.0),
                 child: picture,
               ),
             ),

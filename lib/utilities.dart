@@ -495,6 +495,7 @@ void showPassengerPicture(BuildContext context, String pictureURL) =>
               padding: const EdgeInsets.all(8.0),
               child: FittedBox(
                 child: CachedNetworkImage(
+                  cacheManager: CustomCacheManager(),
                   imageUrl: '$mediaHost/images/users/$pictureURL',
                   placeholder: (context, url) =>
                       const CircularProgressIndicator(),
@@ -518,6 +519,7 @@ void showDriverPictures(
         padding: const EdgeInsets.all(8.0),
         child: FittedBox(
           child: CachedNetworkImage(
+            cacheManager: CustomCacheManager(),
             imageUrl: '$mediaHost/images/users/$userPicture',
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
@@ -529,6 +531,7 @@ void showDriverPictures(
         padding: const EdgeInsets.all(8.0),
         child: FittedBox(
           child: CachedNetworkImage(
+            cacheManager: CustomCacheManager(),
             imageUrl: '$mediaHost/images/cars/$carPicture',
             placeholder: (context, url) => const CircularProgressIndicator(),
             errorWidget: (context, url, error) => const Icon(Icons.error),

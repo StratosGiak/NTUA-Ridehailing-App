@@ -8,7 +8,7 @@ class SocketConnection {
   static final receiveController = StreamController<String>();
   static final receiveSubscription =
       receiveController.stream.listen((event) {});
-  static final connectionController = StreamController();
+  static final connectionController = StreamController<String>();
   static final connectionSubscription =
       connectionController.stream.listen((event) {});
   static late WebSocket channel;

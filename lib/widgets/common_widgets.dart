@@ -17,6 +17,13 @@ import 'package:uni_pool/welcome.dart';
 import '../constants.dart';
 import 'package:uni_pool/socket_handler.dart';
 
+SnackBar snackBarNSFW = const SnackBar(
+  duration: Duration(seconds: 5),
+  content: Text(
+    'An inappropriate picture was detected and taken down.',
+  ),
+);
+
 class ImageWithPlaceholder extends StatelessWidget {
   const ImageWithPlaceholder({
     super.key,
@@ -97,6 +104,7 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
   Widget build(context) {
     Widget child = imageUrl != null
         ? CachedNetworkImage(
+            cacheManager: CustomCacheManager(),
             imageUrl: '$mediaHost/images/${typeOfImage.name}/$imageUrl',
             imageBuilder: (context, imageProvider) => Ink(
               decoration: BoxDecoration(
@@ -116,12 +124,29 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
                 child: CircularProgressIndicator(),
               ),
             ),
-            errorWidget: (_, __, ___) => const Icon(Icons.error_outline),
+            errorWidget: (_, __, ___) => Ink(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 50,
+                    color: Colors.red.shade900,
+                  ),
+                  Positioned.fill(
+                    child: InkWell(
+                      splashFactory: InkSplash.splashFactory,
+                      onTap: onTap,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           )
         : Ink(
             color: Colors.white,
             child: Stack(
-              alignment: AlignmentDirectional.center,
+              alignment: Alignment.center,
               children: [
                 Icon(
                   Icons.add_photo_alternate,
@@ -307,6 +332,7 @@ class UserAvatar extends StatelessWidget {
   Widget build(context) {
     return url != null
         ? CachedNetworkImage(
+            cacheManager: CustomCacheManager(),
             imageUrl: '$mediaHost/images/users/$url',
             imageBuilder: (context, imageProvider) => CircleAvatar(
               radius: size,
@@ -385,8 +411,8 @@ class SubtitledButton extends StatelessWidget {
   }
 }
 
-class SwitchUserButton extends StatelessWidget {
-  const SwitchUserButton({
+class SwitchModeButton extends StatelessWidget {
+  const SwitchModeButton({
     super.key,
     required this.context,
     required this.skip,
