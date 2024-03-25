@@ -239,7 +239,8 @@ class _DriverPageState extends State<DriverPage> {
     setState(() {});
   }
 
-  Future<Car?> _createCar({String? id}) async {
+  Future<void> _createCar(String? id) async {
+    bool imageChanged = false;
     ValueNotifier<({String? imagePath, String? mimeType})> selectedImage =
         ValueNotifier((imagePath: null, mimeType: null));
     ValueNotifier<Color?> finalColor = ValueNotifier(null);
@@ -379,32 +380,22 @@ class _DriverPageState extends State<DriverPage> {
         children: [
           TextButton(
             onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                String? imageName;
-                if (selectedImage.value.imagePath != null &&
-                    selectedImage.value.mimeType != null) {
-                  imageName = await uploadImage(
-                    TypeOfImage.cars,
-                    selectedImage.value.imagePath!,
-                    selectedImage.value.mimeType!,
-                  );
-                }
-                final modelName = _modelNameController.text;
-                final licensePlate =
-                    normalizeLicensePlate(_licensePlateController.text);
-                if (!mounted) return;
-                Navigator.pop(
-                  context,
-                  Car.fromMap({
-                    'id': id,
-                    'model': modelName,
-                    'license': licensePlate,
-                    'seats': seats.value,
-                    'picture': imageName ?? car?.picture,
-                    'color': finalColor.value?.value,
-                  }),
-                );
-              }
+              if (!formKey.currentState!.validate()) return;
+              final modelName = _modelNameController.text;
+              final licensePlate =
+                  normalizeLicensePlate(_licensePlateController.text);
+              if (!mounted) return;
+              Navigator.pop(
+                context,
+                ({
+                  'car_id': id,
+                  'model': modelName,
+                  'license': licensePlate,
+                  'seats': seats.value,
+                  'picture': car?.picture,
+                  'color': finalColor.value?.value,
+                }),
+              );
             },
             child: const Text('Ok'),
           ),
@@ -419,15 +410,18 @@ class _DriverPageState extends State<DriverPage> {
     void onTap() async {
       final result = await pickImage(imageQuality: carImageQuality);
       if (result == null || result.mimeType == null) return;
+      imageChanged = true;
       selectedImage.value = result;
-      finalColor.value = (await PaletteGenerator.fromImageProvider(
+      PaletteGenerator.fromImageProvider(
         Image.file(File(result.imagePath!)).image,
-      ))
-          .colors
-          .elementAt(1);
+      ).then(
+        (value) => finalColor.value = value.colors.length > 1
+            ? value.colors.elementAt(1)
+            : value.colors.first,
+      );
     }
 
-    final value = await showDialog<Car>(
+    final newCar = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
         if (car != null) {
@@ -489,7 +483,28 @@ class _DriverPageState extends State<DriverPage> {
       _modelNameController.clear();
       _licensePlateController.clear();
     });
-    return value;
+    if (newCar == null) return;
+    if (imageChanged) {
+      String? image;
+      if (selectedImage.value.imagePath != null &&
+          selectedImage.value.mimeType != null) {
+        image = await uploadImage(
+          TypeOfImage.cars,
+          selectedImage.value.imagePath!,
+          selectedImage.value.mimeType!,
+        );
+      }
+      newCar['picture'] = image;
+    }
+    if (id != null) {
+      SocketConnection.channel.add(
+        jsonEncode({'type': typeUpdateCar, 'data': newCar}),
+      );
+    } else {
+      SocketConnection.channel.add(
+        jsonEncode({'type': typeAddCar, 'data': newCar}),
+      );
+    }
   }
 
   void _onPositionChange(Position? position) async {
@@ -632,17 +647,10 @@ class _DriverPageState extends State<DriverPage> {
               carList: CarList(
                 selected: selectedCar,
                 onTap: () => setState(() {}),
-                onEditPressed: (id) => _createCar(id: id),
+                onEditPressed: (id) => _createCar(id),
               ),
               onPressed: context.watch<User>().cars.length < 3
-                  ? () async {
-                      final car = await _createCar();
-                      if (car != null) {
-                        SocketConnection.channel.add(
-                          jsonEncode({'type': typeAddCar, 'data': car}),
-                        );
-                      }
-                    }
+                  ? () => _createCar(null)
                   : null,
             )
           : !waitingForPassengers || passengers.isEmpty

@@ -22,7 +22,7 @@ class CarList extends StatelessWidget {
 
   final ValueNotifier<String?> selected;
   final void Function() onTap;
-  final Future<Car?> Function(String) onEditPressed;
+  final Future<void> Function(String) onEditPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -65,15 +65,7 @@ class CarList extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 IconButton(
-                  onPressed: () async {
-                    final car = await onEditPressed(keys[index]);
-                    if (car != null) {
-                      car.id = keys[index];
-                      SocketConnection.channel.add(
-                        jsonEncode({'type': typeUpdateCar, 'data': car}),
-                      );
-                    }
-                  },
+                  onPressed: () => onEditPressed(keys[index]),
                   icon: const Icon(Icons.edit),
                   tooltip: 'Edit',
                 ),
