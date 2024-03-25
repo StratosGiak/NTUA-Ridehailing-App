@@ -133,12 +133,15 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   void initState() {
     super.initState();
-
+    if (SocketConnection.connected) {
+      _connected = true;
+      _loggedIn = true;
+    }
     SocketConnection.receiveSubscription.onData(_socketLoginHandler);
     SocketConnection.connectionSubscription.onData(_connectionHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _getLocationPermission();
-      _connect();
+      if (!SocketConnection.connected) _connect();
     });
   }
 

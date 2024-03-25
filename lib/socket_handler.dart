@@ -12,32 +12,26 @@ class SocketConnection {
   static final connectionSubscription =
       connectionController.stream.listen((event) {});
   static late WebSocket channel;
+  static bool connected = false;
   static int tries = 0;
 
   SocketConnection._internal();
 
   static Future<bool> create() async {
     SocketConnection._internal();
-    return await initConnection();
-  }
-
-  static Future<bool> initConnection() async {
     final result = await connect();
     if (result != null) {
+      connected = true;
       channel = result;
-      broadcast();
+      channel.listen(
+        (data) => receiveController.add(data),
+        onDone: () => _onDone(),
+        onError: (error) => _onError(),
+      );
       return true;
     }
     tries = 0;
     return false;
-  }
-
-  static void broadcast() {
-    channel.listen(
-      (data) => receiveController.add(data),
-      onDone: () => _onDone(),
-      onError: (error) => _onError(),
-    );
   }
 
   static Future<WebSocket?> connect() async {
@@ -46,7 +40,7 @@ class SocketConnection {
           .timeout(const Duration(seconds: 5));
     } catch (error) {
       ++tries;
-      if (tries > 2) return null;
+      if (tries > 3) return null;
       debugPrint('CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries');
       await Future.delayed(const Duration(seconds: 2));
       return await connect();
@@ -54,10 +48,12 @@ class SocketConnection {
   }
 
   static void _onDone() {
+    connected = false;
     connectionController.sink.add('done');
   }
 
   static void _onError() {
+    connected = false;
     connectionController.sink.add('error');
   }
 }
