@@ -89,8 +89,7 @@ class _PassengerPageState extends State<PassengerPage>
               driverRefused = true;
               SocketConnection.channel
                   .add(jsonEncode({'type': typeOutOfRange, 'data': {}}));
-              setState(() {});
-              return;
+              break;
             }
             if (followDriver) {
               moveCameraController.moveCamera(
@@ -351,6 +350,7 @@ class _PassengerPageState extends State<PassengerPage>
               mapController: mapController,
               coordinates: coordinates,
               showArrived: showArrived,
+              showDistance: driverArrived,
               onMove: () => setState(() => followDriver = false),
               moveCameraController: moveCameraController,
               onPressGPS: () => setState(() => followDriver = true),

@@ -63,10 +63,12 @@ class DriverInfoBox extends StatelessWidget {
   const DriverInfoBox({
     super.key,
     required this.driver,
+    required this.showDistance,
     required this.onTileTap,
   });
 
   final Map<String, dynamic> driver;
+  final bool showDistance;
   final void Function() onTileTap;
 
   @override
@@ -149,12 +151,13 @@ class DriverInfoBox extends StatelessWidget {
                     ),
                   ],
                 ),
-              Text("Distance: ${(Geolocator.distanceBetween(
-                    driver["coords"]["latitude"],
-                    driver["coords"]["longitude"],
-                    busStop.latitude,
-                    busStop.longitude,
-                  ) / 25).round() * 25}m"),
+              if (showDistance)
+                Text("Distance: ${(Geolocator.distanceBetween(
+                      driver["coords"]["latitude"],
+                      driver["coords"]["longitude"],
+                      busStop.latitude,
+                      busStop.longitude,
+                    ) / 25).round() * 25}m"),
             ],
           ),
         ),
@@ -172,6 +175,7 @@ class MapScreen extends StatelessWidget {
     required this.mapController,
     required this.coordinates,
     required this.showArrived,
+    required this.showDistance,
     required this.onMove,
     required this.moveCameraController,
     required this.onPressGPS,
@@ -184,6 +188,7 @@ class MapScreen extends StatelessWidget {
   final MapController mapController;
   final Position? coordinates;
   final bool showArrived;
+  final bool showDistance;
   final void Function() onMove;
   final MoveCameraController moveCameraController;
   final void Function() onPressGPS;
@@ -215,6 +220,7 @@ class MapScreen extends StatelessWidget {
       ),
       DriverInfoBox(
         driver: driver,
+        showDistance: showDistance,
         onTileTap: () {
           moveCameraController.moveCamera(
             LatLng(
