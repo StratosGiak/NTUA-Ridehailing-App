@@ -219,37 +219,10 @@ class UserProfileInfo extends StatelessWidget {
             const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
             TextButton(
               onPressed: () async {
-                bool? reply = await showDialog(
+                await signOutAlert(
                   context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: const Text('Really sign out?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Yes'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('No'),
-                        ),
-                      ],
-                    );
-                  },
+                  content: const SizedBox(),
                 );
-                reply = reply ?? false;
-                if (!context.mounted) return;
-                if (reply) {
-                  SecureStorage.deleteAllSecure();
-                  SocketConnection.channel
-                      .add(jsonEncode({'type': typeSignout, 'data': {}}));
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const WelcomePage(),
-                    ),
-                  );
-                }
               },
               child: const Text(
                 'Sign out',
