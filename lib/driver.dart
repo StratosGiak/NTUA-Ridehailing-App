@@ -421,7 +421,7 @@ class _DriverPageState extends State<DriverPage> {
       );
     }
 
-    final newCar = await showDialog<Map<String, dynamic>>(
+    final newCar = await showAdaptiveDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) {
         if (car != null) {
@@ -485,16 +485,18 @@ class _DriverPageState extends State<DriverPage> {
     });
     if (newCar == null) return;
     if (imageChanged) {
-      String? image;
       if (selectedImage.value.imagePath != null &&
           selectedImage.value.mimeType != null) {
-        image = await uploadImage(
+        final image = await uploadImage(
+          context.mounted ? context : null,
           TypeOfImage.cars,
           selectedImage.value.imagePath!,
           selectedImage.value.mimeType!,
         );
+        if (image != null) newCar['picture'] = image;
+      } else {
+        newCar['picture'] = null;
       }
-      newCar['picture'] = image;
     }
     if (id != null) {
       SocketConnection.channel.add(

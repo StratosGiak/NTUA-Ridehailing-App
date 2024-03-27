@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -84,8 +86,12 @@ Future<({String? imagePath, String? mimeType})?> pickImage({
     if (selection == null) return null;
     CroppedFile? cropped = await ImageCropper().cropImage(
       sourcePath: selection.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
       aspectRatioPresets: [CropAspectRatioPreset.square],
-      uiSettings: [AndroidUiSettings()],
+      uiSettings: [
+        AndroidUiSettings(lockAspectRatio: true),
+        IOSUiSettings(aspectRatioLockEnabled: true)
+      ],
     );
     if (cropped == null) return null;
     final mimeType = lookupMimeType(cropped.path);
@@ -97,6 +103,7 @@ Future<({String? imagePath, String? mimeType})?> pickImage({
 }
 
 Future<String?> uploadImage(
+  BuildContext? context,
   TypeOfImage typeOfImage,
   String path,
   String fileType,
@@ -117,6 +124,11 @@ Future<String?> uploadImage(
   if (response.statusCode == 200) {
     return response.body;
   }
+  if (response.statusCode == 413) {
+    if (context != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(snackBarFileSize);
+    }
+  }
   return null;
 }
 
@@ -124,34 +136,56 @@ Future<bool> signOutAlert({
   required BuildContext context,
   required Widget content,
 }) async {
-  bool? reply = await showDialog<bool>(
+  void onConfirmPressed(BuildContext context) {
+    SecureStorage.deleteAllSecure();
+    SocketConnection.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
+    context.read<User>().setUser(null);
+    Navigator.pop(context, true);
+  }
+
+  void onCancelPressed(BuildContext context) {
+    Navigator.pop(context, false);
+  }
+
+  const confirmChild = Text('Sign out');
+  const cancelChild = Text('Cancel');
+
+  bool? reply = await showAdaptiveDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
+    barrierDismissible: true,
+    builder: (context) => AlertDialog.adaptive(
       title: const Text('Really sign out?'),
       content: content,
-      actions: [
-        TextButton(
-          onPressed: () {
-            SecureStorage.deleteAllSecure();
-            SocketConnection.channel
-                .add(jsonEncode({'type': typeSignout, 'data': {}}));
-            context.read<User>().setUser(null);
-            Navigator.pop(context, true);
-          },
-          child: const Text('Yes'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: const Text('Cancel'),
-        ),
-      ],
+      actions: Platform.isIOS
+          ? [
+              CupertinoDialogAction(
+                onPressed: () => onCancelPressed(context),
+                isDefaultAction: true,
+                child: cancelChild,
+              ),
+              CupertinoDialogAction(
+                onPressed: () => onConfirmPressed(context),
+                isDestructiveAction: true,
+                child: confirmChild,
+              ),
+            ]
+          : [
+              TextButton(
+                onPressed: () => onCancelPressed(context),
+                child: cancelChild,
+              ),
+              TextButton(
+                onPressed: () => onConfirmPressed(context),
+                child: confirmChild,
+              ),
+            ],
     ),
   );
   return reply ?? false;
 }
 
 Future<Color?> colorWheelDialog(BuildContext context, Color? initialColor) {
-  return showDialog<Color>(
+  return showAdaptiveDialog<Color>(
     context: context,
     builder: (context) {
       ValueNotifier<Color> newColor = initialColor != null
@@ -409,26 +443,50 @@ Future<bool> stopDialog(
   TypeOfUser typeOfUser,
 ) async {
   if (skip) return Future.value(true);
-  bool? reply = await showDialog<bool>(
+  void onConfirmPressed(BuildContext context) {
+    Navigator.pop(context, true);
+  }
+
+  void onCancelPressed(BuildContext context) {
+    Navigator.pop(context, false);
+  }
+
+  const confirmChild = Text('Yes');
+  const cancelChild = Text('No');
+
+  bool? reply = await showAdaptiveDialog<bool>(
     context: context,
     builder: (context) {
-      return AlertDialog(
+      return AlertDialog.adaptive(
         title: Text(
           back
               ? 'Really stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}'
               : 'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?',
         ),
         content: const Text('The current ride will be cancelled'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
-          ),
-        ],
+        actions: Platform.isIOS
+            ? [
+                CupertinoDialogAction(
+                  onPressed: () => onCancelPressed(context),
+                  isDefaultAction: true,
+                  child: cancelChild,
+                ),
+                CupertinoDialogAction(
+                  onPressed: () => onConfirmPressed(context),
+                  isDestructiveAction: true,
+                  child: confirmChild,
+                ),
+              ]
+            : [
+                TextButton(
+                  onPressed: () => onCancelPressed(context),
+                  child: cancelChild,
+                ),
+                TextButton(
+                  onPressed: () => onConfirmPressed(context),
+                  child: confirmChild,
+                ),
+              ],
       );
     },
   );
@@ -479,7 +537,7 @@ List<Marker> usersToMarkers(List<Map<String, dynamic>> users) => users
     .toList();
 
 void showPassengerPicture(BuildContext context, String pictureURL) =>
-    showDialog<void>(
+    showAdaptiveDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
@@ -498,7 +556,7 @@ void showPassengerPicture(BuildContext context, String pictureURL) =>
                   cacheManager: CustomCacheManager(),
                   imageUrl: '$mediaHost/images/users/$pictureURL',
                   placeholder: (context, url) =>
-                      const CircularProgressIndicator(),
+                      const CircularProgressIndicator.adaptive(),
                   errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
@@ -521,7 +579,8 @@ void showDriverPictures(
           child: CachedNetworkImage(
             cacheManager: CustomCacheManager(),
             imageUrl: '$mediaHost/images/users/$userPicture',
-            placeholder: (context, url) => const CircularProgressIndicator(),
+            placeholder: (context, url) =>
+                const CircularProgressIndicator.adaptive(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
         ),
@@ -533,13 +592,14 @@ void showDriverPictures(
           child: CachedNetworkImage(
             cacheManager: CustomCacheManager(),
             imageUrl: '$mediaHost/images/cars/$carPicture',
-            placeholder: (context, url) => const CircularProgressIndicator(),
+            placeholder: (context, url) =>
+                const CircularProgressIndicator.adaptive(),
             errorWidget: (context, url, error) => const Icon(Icons.error),
           ),
         ),
       ),
   ];
-  showDialog<void>(
+  showAdaptiveDialog<void>(
     context: context,
     barrierDismissible: true,
     builder: (context) {

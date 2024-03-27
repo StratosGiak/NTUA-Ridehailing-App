@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,6 +28,17 @@ class CarList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void onConfirmPressed(BuildContext context) {
+      Navigator.pop(context, true);
+    }
+
+    void onCancelPressed(BuildContext context) {
+      Navigator.pop(context, false);
+    }
+
+    const confirmChild = Text('Delete');
+    const cancelChild = Text('Cancel');
+
     final user = context.watch<User>();
     final cars = user.cars;
     final keys = cars.keys.toList();
@@ -35,6 +48,7 @@ class CarList extends StatelessWidget {
         color: const Color.fromARGB(144, 255, 255, 255),
       ),
       child: ListView.separated(
+        padding: EdgeInsets.zero,
         shrinkWrap: true,
         itemBuilder: (context, index) {
           return ListTile(
@@ -53,7 +67,7 @@ class CarList extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text('Seats: ${cars[keys[index]]!.seats}'),
             ),
-            leading: Radio<String>(
+            leading: Radio<String>.adaptive(
               value: keys[index],
               groupValue: selected.value,
               onChanged: (value) {
@@ -71,26 +85,38 @@ class CarList extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () async {
-                    bool? reply = await showDialog(
+                    bool? reply = await showAdaptiveDialog<bool>(
+                      barrierDismissible: true,
                       context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: const Text('Really delete car?'),
-                          content: const Text(
-                            'This action cannot be undone',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Yes'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('No'),
-                            ),
-                          ],
-                        );
-                      },
+                      builder: (context) => AlertDialog.adaptive(
+                        title: const Text('Really delete car?'),
+                        content: const Text(
+                          'This action cannot be undone',
+                        ),
+                        actions: Platform.isIOS
+                            ? [
+                                CupertinoDialogAction(
+                                  onPressed: () => onCancelPressed(context),
+                                  isDefaultAction: true,
+                                  child: cancelChild,
+                                ),
+                                CupertinoDialogAction(
+                                  onPressed: () => onConfirmPressed(context),
+                                  isDestructiveAction: true,
+                                  child: confirmChild,
+                                ),
+                              ]
+                            : [
+                                TextButton(
+                                  onPressed: () => onCancelPressed(context),
+                                  child: cancelChild,
+                                ),
+                                TextButton(
+                                  onPressed: () => onConfirmPressed(context),
+                                  child: confirmChild,
+                                ),
+                              ],
+                      ),
                     );
                     if (reply ?? false) {
                       SocketConnection.channel.add(
@@ -206,7 +232,7 @@ class DriverStatusScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const Padding(padding: EdgeInsets.all(10.0)),
-            const CircularProgressIndicator(),
+            const CircularProgressIndicator.adaptive(),
           ]
         : [
             if (requestTimeout)
@@ -227,7 +253,7 @@ class DriverStatusScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const Padding(padding: EdgeInsets.all(10.0)),
-            const CircularProgressIndicator(),
+            const CircularProgressIndicator.adaptive(),
           ];
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: children),

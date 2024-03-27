@@ -18,7 +18,14 @@ import 'package:uni_pool/socket_handler.dart';
 SnackBar snackBarNSFW = const SnackBar(
   duration: Duration(seconds: 5),
   content: Text(
-    'An inappropriate picture was detected and taken down.',
+    'An inappropriate image was detected and taken down',
+  ),
+);
+
+SnackBar snackBarFileSize = const SnackBar(
+  duration: Duration(seconds: 5),
+  content: Text(
+    'Image exceeds maximum file size (2MB). Please try choosing a smaller image',
   ),
 );
 
@@ -119,7 +126,7 @@ class NetworkImageWithPlaceholder extends StatelessWidget {
               child: SizedBox(
                 width: 40,
                 height: 40,
-                child: CircularProgressIndicator(),
+                child: CircularProgressIndicator.adaptive(),
               ),
             ),
             errorWidget: (_, __, ___) => Ink(
@@ -275,6 +282,7 @@ class UserProfileCard extends StatelessWidget {
                 final result = await pickImage(imageQuality: userImageQuality);
                 if (result == null || result.mimeType == null) return;
                 final newImage = await uploadImage(
+                  context.mounted ? context : null,
                   TypeOfImage.users,
                   result.imagePath!,
                   result.mimeType!,
@@ -309,7 +317,8 @@ class UserAvatar extends StatelessWidget {
               radius: size,
               backgroundImage: imageProvider,
             ),
-            placeholder: (context, url) => const CircularProgressIndicator(),
+            placeholder: (context, url) =>
+                const CircularProgressIndicator.adaptive(),
             errorWidget: (context, url, error) => CircleAvatar(
               radius: size,
               backgroundImage:
@@ -338,7 +347,8 @@ class UserImageButton extends StatelessWidget {
   Widget build(context) {
     return IconButton(
       onPressed: enablePress
-          ? () => showDialog(
+          ? () => showAdaptiveDialog<void>(
+                barrierDismissible: true,
                 context: context,
                 builder: (context) => UserProfileCard(showSignout: showSignout),
               )
@@ -422,7 +432,7 @@ class SwitchModeButton extends StatelessWidget {
       },
       iconSize: 26.0,
       icon: back
-          ? const Icon(Icons.arrow_back)
+          ? Icon(Icons.adaptive.arrow_back)
           : typeOfUser == TypeOfUser.driver
               ? const Icon(Icons.directions_walk)
               : const Icon(Icons.directions_car),

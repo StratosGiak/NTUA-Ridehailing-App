@@ -51,7 +51,7 @@ class PassengerStatusScreen extends StatelessWidget {
         style: TextStyle(fontSize: 25.0, fontWeight: FontWeight.w600),
       ),
       const Padding(padding: EdgeInsets.all(20.0)),
-      const CircularProgressIndicator(),
+      const CircularProgressIndicator.adaptive(),
     ];
     return Center(
       child: Column(mainAxisSize: MainAxisSize.min, children: children),
