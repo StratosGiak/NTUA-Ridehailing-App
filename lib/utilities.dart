@@ -187,6 +187,7 @@ Future<bool> signOutAlert({
 Future<Color?> colorWheelDialog(BuildContext context, Color? initialColor) {
   return showAdaptiveDialog<Color>(
     context: context,
+    barrierDismissible: true,
     builder: (context) {
       ValueNotifier<Color> newColor = initialColor != null
           ? ValueNotifier(initialColor)
@@ -456,6 +457,7 @@ Future<bool> stopDialog(
 
   bool? reply = await showAdaptiveDialog<bool>(
     context: context,
+    barrierDismissible: true,
     builder: (context) {
       return AlertDialog.adaptive(
         title: Text(

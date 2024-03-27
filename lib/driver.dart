@@ -423,6 +423,7 @@ class _DriverPageState extends State<DriverPage> {
 
     final newCar = await showAdaptiveDialog<Map<String, dynamic>>(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         if (car != null) {
           seats.value = car.seats;
