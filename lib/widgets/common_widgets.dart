@@ -11,9 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:uni_pool/driver.dart';
 import 'package:uni_pool/passenger.dart';
 import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/utilities.dart';
-import 'package:uni_pool/welcome.dart';
 import '../constants.dart';
 import 'package:uni_pool/socket_handler.dart';
 
