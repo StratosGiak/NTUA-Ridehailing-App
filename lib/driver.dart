@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:diacritic/diacritic.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:palette_generator/palette_generator.dart';
@@ -412,13 +414,21 @@ class _DriverPageState extends State<DriverPage> {
       if (result == null || result.mimeType == null) return;
       imageChanged = true;
       selectedImage.value = result;
-      PaletteGenerator.fromImageProvider(
-        Image.file(File(result.imagePath!)).image,
-      ).then(
-        (value) => finalColor.value = value.colors.length > 1
-            ? value.colors.elementAt(1)
-            : value.colors.first,
-      );
+      ui.decodeImageFromList(File(result.imagePath!).readAsBytesSync(),
+          (image) async {
+        final byteData = await image.toByteData();
+        if (byteData == null) return;
+        final encodedImage =
+            EncodedImage(byteData, width: image.width, height: image.height);
+        compute(
+          (message) => PaletteGenerator.fromByteData(message),
+          encodedImage,
+        ).then(
+          (palette) => finalColor.value = palette.colors.length > 1
+              ? palette.colors.elementAt(1)
+              : palette.colors.first,
+        );
+      });
     }
 
     final newCar = await showAdaptiveDialog<Map<String, dynamic>>(
