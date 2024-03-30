@@ -12,17 +12,17 @@ import 'package:uni_pool/driver.dart';
 import 'package:uni_pool/passenger.dart';
 import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/utilities.dart';
-import '../constants.dart';
+import 'package:uni_pool/constants.dart';
 import 'package:uni_pool/socket_handler.dart';
 
-SnackBar snackBarNSFW = const SnackBar(
+const snackBarNSFW = SnackBar(
   duration: Duration(seconds: 5),
   content: Text(
     'An inappropriate image was detected and taken down',
   ),
 );
 
-SnackBar snackBarFileSize = const SnackBar(
+const snackBarFileSize = SnackBar(
   duration: Duration(seconds: 5),
   content: Text(
     'Image exceeds maximum file size (2MB). Please try choosing a smaller image',
@@ -524,8 +524,9 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
         minZoom: 14,
         maxZoom: 16,
         cameraConstraint: CameraConstraint.contain(bounds: mapBounds),
-        interactionOptions:
-            const InteractionOptions(flags: ~InteractiveFlag.rotate),
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+        ),
         onPositionChanged: (position, hasGesture) {
           if (hasGesture) widget.onMove();
         },
