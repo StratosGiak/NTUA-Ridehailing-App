@@ -29,6 +29,13 @@ const snackBarFileSize = SnackBar(
   ),
 );
 
+const snackBarConnectionLost = SnackBar(
+  duration: Duration(seconds: 5),
+  content: Text(
+    'The connection to the server was lost. Please check your internet connection',
+  ),
+);
+
 class ImageWithPlaceholder extends StatelessWidget {
   const ImageWithPlaceholder({
     super.key,

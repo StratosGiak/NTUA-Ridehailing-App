@@ -48,6 +48,7 @@ class _PassengerPageState extends State<PassengerPage>
         context,
         MaterialPageRoute(builder: (context) => const WelcomePage()),
       );
+      ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
     }
   }
 

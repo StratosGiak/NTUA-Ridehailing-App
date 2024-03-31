@@ -64,6 +64,7 @@ class _DriverPageState extends State<DriverPage> {
         context,
         MaterialPageRoute(builder: (context) => const WelcomePage()),
       );
+      ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
     }
   }
 

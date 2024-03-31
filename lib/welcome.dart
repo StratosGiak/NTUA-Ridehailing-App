@@ -59,6 +59,7 @@ class _WelcomePageState extends State<WelcomePage> {
       context.read<User>().setUser(null);
       _connected = false;
       _loggedIn = false;
+      ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       setState(() {});
     }
   }
