@@ -24,12 +24,10 @@ class _WebVieScreenState extends State<WebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Browser')),
-        body: WebViewWidget(controller: webViewController),
-      ),
-      onWillPop: () {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
         Navigator.pop(
           context,
           http.Response(
@@ -41,8 +39,11 @@ class _WebVieScreenState extends State<WebViewScreen> {
             200,
           ),
         );
-        return Future.value(false);
       },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Browser')),
+        body: WebViewWidget(controller: webViewController),
+      ),
     );
   }
 }
