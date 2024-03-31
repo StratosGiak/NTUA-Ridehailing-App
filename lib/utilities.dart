@@ -90,7 +90,7 @@ Future<({String? imagePath, String? mimeType})?> pickImage({
       aspectRatioPresets: [CropAspectRatioPreset.square],
       uiSettings: [
         AndroidUiSettings(lockAspectRatio: true),
-        IOSUiSettings(aspectRatioLockEnabled: true)
+        IOSUiSettings(aspectRatioLockEnabled: true),
       ],
     );
     if (cropped == null) return null;
@@ -139,7 +139,6 @@ Future<bool> signOutAlert({
   void onConfirmPressed(BuildContext context) {
     SecureStorage.deleteAllSecure();
     SocketConnection.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
-    context.read<User>().setUser(null);
     Navigator.pop(context, true);
   }
 

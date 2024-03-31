@@ -64,7 +64,9 @@ class _DriverPageState extends State<DriverPage> {
         context,
         MaterialPageRoute(builder: (context) => const WelcomePage()),
       );
-      ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
+      if (SocketConnection.channel.closeCode != 1000) {
+        ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
+      }
     }
   }
 
