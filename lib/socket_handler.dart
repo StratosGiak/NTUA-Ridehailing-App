@@ -17,9 +17,9 @@ class SocketConnection {
 
   SocketConnection._internal();
 
-  static Future<bool> create() async {
+  static Future<bool> create(String token) async {
     SocketConnection._internal();
-    final result = await connect();
+    final result = await connect(token);
     if (result != null) {
       connected = true;
       channel = result;
@@ -34,16 +34,18 @@ class SocketConnection {
     return false;
   }
 
-  static Future<WebSocket?> connect() async {
+  static Future<WebSocket?> connect(String token) async {
     try {
-      return await WebSocket.connect(apiHost)
-          .timeout(const Duration(seconds: 5));
+      return await WebSocket.connect(
+        apiHost,
+        headers: {'Sec-websocket-protocol': token},
+      ).timeout(const Duration(seconds: 5));
     } catch (error) {
       ++tries;
       if (tries > 3) return null;
       debugPrint('CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries');
       await Future.delayed(const Duration(seconds: 2));
-      return await connect();
+      return await connect(token);
     }
   }
 

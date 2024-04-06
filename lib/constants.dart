@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 const apiHost = 'wss://ntua-ridehailing.dslab.ece.ntua.gr/api';
 const mediaHost = 'https://ntua-ridehailing.dslab.ece.ntua.gr/media';
+const authHost = 'https://ntua-ridehailing.dslab.ece.ntua.gr/auth';
 String mapUrl = 'assets/map_tiles/{z}/{x}/{y}.png';
 
 enum TypeOfUser { driver, passenger }

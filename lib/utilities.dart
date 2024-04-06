@@ -14,8 +14,6 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:provider/provider.dart';
-import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:uni_pool/widgets/common_widgets.dart';

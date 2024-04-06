@@ -21,8 +21,7 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> {
-  bool _loggedIn = false;
-  bool? _connected;
+  bool? _connected = false;
 
   void _socketLoginHandler(message) {
     final decoded = jsonDecode(message);
@@ -33,10 +32,6 @@ class _WelcomePageState extends State<WelcomePage> {
       case typeLogin:
         if (data['id'] == null || data['name'] == null) return;
         context.read<User>().setUser(data);
-        SecureStorage.storeValueSecure(LoginInfo.id, data['id']);
-        SecureStorage.storeValueSecure(LoginInfo.name, data['name']);
-        SecureStorage.storeValueSecure(LoginInfo.token, data['token']);
-        _loggedIn = true;
         break;
       case typeDeleteUserPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
@@ -58,7 +53,6 @@ class _WelcomePageState extends State<WelcomePage> {
     if (message == 'done' || message == 'error') {
       context.read<User>().setUser(null);
       _connected = false;
-      _loggedIn = false;
       if (SocketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
@@ -85,45 +79,17 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   void _logInRequest() async {
-    final response = await Navigator.push(
+    final code = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const WebViewScreen(
-          url:
-              'https://google.com', //'https://login.ntua.gr/idp/profile/SAML2/Redirect/SSO'
-        ),
+        builder: (context) => const WebViewScreen(url: authHost),
       ),
     );
-    debugPrint(response.body);
-    if (response!.statusCode == 200) {
-      final jsonResponse = jsonDecode(response!.body);
-      SocketConnection.channel
-          .add(jsonEncode({'type': typeLogin, 'data': jsonResponse}));
-    }
-  }
-
-  void _connect() async {
-    _connected = null;
+    debugPrint(code);
+    if (code == null) return;
+    setState(() => _connected = null);
+    _connected = await SocketConnection.create(code);
     setState(() {});
-    _connected = await SocketConnection.create();
-    if (_connected!) await _checkLoggedIn();
-    setState(() {});
-  }
-
-  Future<void> _checkLoggedIn() async {
-    final String? savedID = await SecureStorage.readValueSecure(LoginInfo.id);
-    final String? savedName =
-        await SecureStorage.readValueSecure(LoginInfo.name);
-    final String? savedToken =
-        await SecureStorage.readValueSecure(LoginInfo.token);
-    if (savedID != null && savedName != null && savedToken != null) {
-      SocketConnection.channel.add(
-        jsonEncode({
-          'type': typeLogin,
-          'data': {'id': savedID, 'name': savedName, 'token': savedToken},
-        }),
-      );
-    }
   }
 
   void _getLocationPermission() async {
@@ -136,15 +102,11 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   void initState() {
     super.initState();
-    if (SocketConnection.connected) {
-      _connected = true;
-      _loggedIn = true;
-    }
+    if (SocketConnection.connected) _connected = true;
     SocketConnection.receiveSubscription.onData(_socketLoginHandler);
     SocketConnection.connectionSubscription.onData(_connectionHandler);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _getLocationPermission();
-      if (!SocketConnection.connected) _connect();
     });
   }
 
@@ -169,7 +131,10 @@ class _WelcomePageState extends State<WelcomePage> {
                     ),
                   ),
                   const Spacer(flex: 1),
-                  UserImageButton(enablePress: _loggedIn, showSignout: false),
+                  UserImageButton(
+                    enablePress: _connected ?? false,
+                    showSignout: false,
+                  ),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
                 ],
               ),
@@ -179,35 +144,23 @@ class _WelcomePageState extends State<WelcomePage> {
                 style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
               ),
               const Spacer(flex: 10),
-              Builder(
-                builder: (context) {
-                  return TextButton(
-                    onPressed: _connected == null || _loggedIn
-                        ? null
+              TextButton(
+                onPressed: _connected ?? true ? null : _logInRequest,
+                child: Selector<User, String>(
+                  selector: (_, user) => user.name,
+                  builder: (_, name, __) => Text(
+                    _connected == null
+                        ? 'Connecting...'
                         : _connected!
-                            ? _logInRequest
-                            : _connect,
-                    child: Selector<User, String>(
-                      selector: (_, user) => user.name,
-                      builder: (_, name, __) {
-                        return Text(
-                          _connected == null
-                              ? 'Connecting...'
-                              : !_connected!
-                                  ? 'Connection failed\nPress to retry'
-                                  : _loggedIn
-                                      ? 'Logged in as $name'
-                                      : 'Login',
-                          style: const TextStyle(fontSize: 30),
-                          textAlign: TextAlign.center,
-                        );
-                      },
-                    ),
-                  );
-                },
+                            ? 'Logged in as\n$name'
+                            : 'Log in',
+                    style: const TextStyle(fontSize: 30),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               ),
               Visibility(
-                visible: !_loggedIn,
+                visible: !(_connected ?? false),
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
@@ -220,7 +173,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   SubtitledButton(
                     icon: const Icon(Icons.directions_car),
                     subtitle: const Text('I am a driver'),
-                    onPressed: _loggedIn
+                    onPressed: _connected ?? false
                         ? () => _navigateToMain(TypeOfUser.driver)
                         : null,
                   ),
@@ -228,7 +181,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   SubtitledButton(
                     icon: const Icon(Icons.directions_walk),
                     subtitle: const Text('I am a passenger'),
-                    onPressed: _loggedIn
+                    onPressed: _connected ?? false
                         ? () => _navigateToMain(TypeOfUser.passenger)
                         : null,
                   ),
@@ -236,7 +189,7 @@ class _WelcomePageState extends State<WelcomePage> {
               ),
               const Spacer(flex: 20),
               Visibility(
-                visible: _loggedIn,
+                visible: _connected ?? false,
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
@@ -246,7 +199,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       context: context,
                       content: const SizedBox(),
                     );
-                    if (reply) setState(() => _loggedIn = false);
+                    if (reply) setState(() => _connected = false);
                   },
                   child: const Text('Sign out', style: TextStyle(fontSize: 25)),
                 ),
