@@ -29,6 +29,13 @@ const snackBarFileSize = SnackBar(
   ),
 );
 
+const snackBarConnectionNotFound = SnackBar(
+  duration: Duration(seconds: 5),
+  content: Text(
+    'Could not establish a connection with the server. Please check your internet connection',
+  ),
+);
+
 const snackBarConnectionLost = SnackBar(
   duration: Duration(seconds: 5),
   content: Text(
@@ -36,10 +43,10 @@ const snackBarConnectionLost = SnackBar(
   ),
 );
 
-const snackBarAuth = SnackBar(
+const snackBarAuthentication = SnackBar(
   duration: Duration(seconds: 5),
   content: Text(
-    'There was an error during authentication',
+    'There was an error trying to log in. Please try again',
   ),
 );
 
