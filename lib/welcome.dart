@@ -68,7 +68,7 @@ class _WelcomePageState extends State<WelcomePage> {
     if (idToken == null) return;
     await SocketConnection.create(idToken);
     if (mounted && SocketConnection.connected.value != true) {
-      ScaffoldMessenger.of(context).showSnackBar(snackBarAuth);
+      ScaffoldMessenger.of(context).showSnackBar(snackBarAuthentication);
     }
   }
 
