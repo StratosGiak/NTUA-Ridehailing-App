@@ -419,19 +419,17 @@ class SwitchModeButton extends StatelessWidget {
     required this.context,
     required this.skip,
     required this.typeOfUser,
-    this.back = false,
   });
 
   final BuildContext context;
   final bool skip;
   final TypeOfUser typeOfUser;
-  final bool back;
 
   @override
   Widget build(context) {
     return IconButton(
       onPressed: () async {
-        if (await stopDialog(context, skip, back, typeOfUser) &&
+        if (await switchModeDialog(context, skip, typeOfUser) &&
             context.mounted) {
           SocketConnection.channel.add(
             jsonEncode({
@@ -444,7 +442,7 @@ class SwitchModeButton extends StatelessWidget {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => (typeOfUser == TypeOfUser.driver) ^ back
+              builder: (context) => (typeOfUser == TypeOfUser.driver)
                   ? const PassengerPage()
                   : const DriverPage(),
             ),
@@ -452,14 +450,11 @@ class SwitchModeButton extends StatelessWidget {
         }
       },
       iconSize: 26.0,
-      icon: back
-          ? Icon(Icons.adaptive.arrow_back)
-          : typeOfUser == TypeOfUser.driver
-              ? const Icon(Icons.directions_walk)
-              : const Icon(Icons.directions_car),
-      tooltip: back
-          ? "Stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}"
-          : 'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode',
+      icon: typeOfUser == TypeOfUser.driver
+          ? const Icon(Icons.directions_walk)
+          : const Icon(Icons.directions_car),
+      tooltip:
+          'Switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode',
     );
   }
 }

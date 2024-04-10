@@ -12,7 +12,6 @@ import 'package:flutter/services.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:provider/provider.dart';
 import 'package:uni_pool/constants.dart';
-import 'package:uni_pool/welcome.dart';
 import 'package:uni_pool/providers.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:uni_pool/socket_handler.dart';
@@ -60,10 +59,7 @@ class _DriverPageState extends State<DriverPage> {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
       context.read<User>().setUser(null);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomePage()),
-      );
+      Navigator.popUntil(context, (route) => route.isFirst);
       if (SocketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
@@ -588,10 +584,7 @@ class _DriverPageState extends State<DriverPage> {
         );
       }
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomePage()),
-      );
+      Navigator.pop(context);
     }
     setState(() {});
   }
@@ -635,68 +628,74 @@ class _DriverPageState extends State<DriverPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      appBar: AppBar(
-        title: const Text('Driver'),
-        leading: Visibility(
-          visible: passengers.isNotEmpty,
-          child: SwitchModeButton(
-            context: context,
-            skip: passengers.isEmpty || !inRadius,
-            typeOfUser: TypeOfUser.driver,
-            back: true,
-          ),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        if ((SocketConnection.connected.value ?? false) &&
+            passengers.isNotEmpty &&
+            inRadius) {
+          if (!await stopDrivingDialog(context)) return;
+          SocketConnection.channel.add(
+            jsonEncode({'type': typeStopDriver, 'data': {}}),
+          );
+        }
+        if (context.mounted) Navigator.pop(context);
+      },
+      child: Scaffold(
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        appBar: AppBar(
+          title: const Text('Driver'),
+          actions: [
+            SwitchModeButton(
+              context: context,
+              skip: passengers.isEmpty || !inRadius,
+              typeOfUser: TypeOfUser.driver,
+            ),
+            const UserImageButton(),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
+          ],
         ),
-        actions: [
-          SwitchModeButton(
-            context: context,
-            skip: passengers.isEmpty || !inRadius,
-            typeOfUser: TypeOfUser.driver,
-          ),
-          const UserImageButton(),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
-        ],
-      ),
-      body: !driving
-          ? CarListScreen(
-              carList: CarList(
-                selected: selectedCar,
-                onTap: () => setState(() {}),
-                onEditPressed: (id) => _createCar(id),
-              ),
-              onPressed: context.watch<User>().cars.length < 3
-                  ? () => _createCar(null)
-                  : null,
-            )
-          : !waitingForPassengers || passengers.isEmpty
-              ? DriverStatusScreen(
-                  inRadius: inRadius,
-                  waitingForPassengers: waitingForPassengers,
-                  requestTimeout: requestTimedOut,
-                  passengersCancelled: passengersCancelled,
-                )
-              : MapScreen(
-                  context: context,
-                  passengers: passengers,
-                  mapController: mapController,
-                  coordinates: coordinates,
-                  showArrived: showArrived,
-                  onMove: () => setState(() => followDriver = false),
-                  moveCameraController: moveCameraController,
-                  onPressGPS: () => setState(() => followDriver = true),
-                  followGPS: followDriver,
+        body: !driving
+            ? CarListScreen(
+                carList: CarList(
+                  selected: selectedCar,
+                  onTap: () => setState(() {}),
+                  onEditPressed: (id) => _createCar(id),
                 ),
-      floatingActionButton: Visibility(
-        visible: selectedCar.value != null && passengers.isEmpty,
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: LargeFAB(
-              inProgress: driving,
-              onPressed: selectedCar.value != null ? _toggleDriving : null,
-              tooltip: driving ? 'Stop driving' : 'Start driving',
+                onPressed: context.watch<User>().cars.length < 3
+                    ? () => _createCar(null)
+                    : null,
+              )
+            : !waitingForPassengers || passengers.isEmpty
+                ? DriverStatusScreen(
+                    inRadius: inRadius,
+                    waitingForPassengers: waitingForPassengers,
+                    requestTimeout: requestTimedOut,
+                    passengersCancelled: passengersCancelled,
+                  )
+                : MapScreen(
+                    context: context,
+                    passengers: passengers,
+                    mapController: mapController,
+                    coordinates: coordinates,
+                    showArrived: showArrived,
+                    onMove: () => setState(() => followDriver = false),
+                    moveCameraController: moveCameraController,
+                    onPressGPS: () => setState(() => followDriver = true),
+                    followGPS: followDriver,
+                  ),
+        floatingActionButton: Visibility(
+          visible: selectedCar.value != null && passengers.isEmpty,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: LargeFAB(
+                inProgress: driving,
+                onPressed: selectedCar.value != null ? _toggleDriving : null,
+                tooltip: driving ? 'Stop driving' : 'Start driving',
+              ),
             ),
           ),
         ),

@@ -140,6 +140,8 @@ Future<bool> signOutAlert({
     await Authenticator.endSession();
     SocketConnection.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
     SocketConnection.connected.value = false;
+    if (!context.mounted) return;
+    Navigator.popUntil(context, (route) => route.isFirst);
   }
 
   void onCancelPressed(BuildContext context) {
@@ -436,10 +438,9 @@ Future<List<double>?> arrivedDialog({
   return ratingsList;
 }
 
-Future<bool> stopDialog(
+Future<bool> switchModeDialog(
   BuildContext context,
   bool skip,
-  bool back,
   TypeOfUser typeOfUser,
 ) async {
   if (skip) return Future.value(true);
@@ -460,11 +461,105 @@ Future<bool> stopDialog(
     builder: (context) {
       return AlertDialog.adaptive(
         title: Text(
-          back
-              ? 'Really stop ${typeOfUser == TypeOfUser.driver ? 'driving' : 'waiting for drivers'}'
-              : 'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?',
+          'Really switch to ${typeOfUser == TypeOfUser.driver ? 'passenger' : 'driver'} mode?',
         ),
         content: const Text('The current ride will be cancelled'),
+        actions: Platform.isIOS
+            ? [
+                CupertinoDialogAction(
+                  onPressed: () => onCancelPressed(context),
+                  isDefaultAction: true,
+                  child: cancelChild,
+                ),
+                CupertinoDialogAction(
+                  onPressed: () => onConfirmPressed(context),
+                  isDestructiveAction: true,
+                  child: confirmChild,
+                ),
+              ]
+            : [
+                TextButton(
+                  onPressed: () => onCancelPressed(context),
+                  child: cancelChild,
+                ),
+                TextButton(
+                  onPressed: () => onConfirmPressed(context),
+                  child: confirmChild,
+                ),
+              ],
+      );
+    },
+  );
+  return reply ?? false;
+}
+
+Future<bool> stopDrivingDialog(BuildContext context) async {
+  void onConfirmPressed(BuildContext context) {
+    Navigator.pop(context, true);
+  }
+
+  void onCancelPressed(BuildContext context) {
+    Navigator.pop(context, false);
+  }
+
+  const confirmChild = Text('Yes');
+  const cancelChild = Text('No');
+
+  bool? reply = await showAdaptiveDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) {
+      return AlertDialog.adaptive(
+        title: const Text('Really stop driving?'),
+        content: const Text('The current ride will be cancelled'),
+        actions: Platform.isIOS
+            ? [
+                CupertinoDialogAction(
+                  onPressed: () => onCancelPressed(context),
+                  isDefaultAction: true,
+                  child: cancelChild,
+                ),
+                CupertinoDialogAction(
+                  onPressed: () => onConfirmPressed(context),
+                  isDestructiveAction: true,
+                  child: confirmChild,
+                ),
+              ]
+            : [
+                TextButton(
+                  onPressed: () => onCancelPressed(context),
+                  child: cancelChild,
+                ),
+                TextButton(
+                  onPressed: () => onConfirmPressed(context),
+                  child: confirmChild,
+                ),
+              ],
+      );
+    },
+  );
+  return reply ?? false;
+}
+
+Future<bool> stopPassengerDialog(BuildContext context) async {
+  void onConfirmPressed(BuildContext context) {
+    Navigator.pop(context, true);
+  }
+
+  void onCancelPressed(BuildContext context) {
+    Navigator.pop(context, false);
+  }
+
+  const confirmChild = Text('Yes');
+  const cancelChild = Text('No');
+
+  bool? reply = await showAdaptiveDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) {
+      return AlertDialog.adaptive(
+        title: const Text('Really cancel ride?'),
+        content: const Text('You will lose your drivers'),
         actions: Platform.isIOS
             ? [
                 CupertinoDialogAction(

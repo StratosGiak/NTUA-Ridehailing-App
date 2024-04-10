@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import 'package:uni_pool/constants.dart';
 import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/utilities.dart';
-import 'package:uni_pool/welcome.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -44,10 +43,7 @@ class _PassengerPageState extends State<PassengerPage>
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
       context.read<User>().setUser(null);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const WelcomePage()),
-      );
+      Navigator.pop(context);
       if (SocketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
@@ -168,10 +164,7 @@ class _PassengerPageState extends State<PassengerPage>
           );
         }
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const WelcomePage()),
-        );
+        Navigator.pop(context);
         break;
       case typeDeleteUserPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
@@ -328,38 +321,53 @@ class _PassengerPageState extends State<PassengerPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Passenger'),
-        actions: [
-          SwitchModeButton(
-            context: context,
-            skip: driver == null || !inRadius,
-            typeOfUser: TypeOfUser.passenger,
-          ),
-          const UserImageButton(),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
-        ],
-      ),
-      body: !inRadius || driver == null
-          ? PassengerStatusScreen(
-              inRadius: inRadius,
-              driverRefused: driverRefused,
-              requestTimedOut: requestTimedOut,
-            )
-          : MapScreen(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        if ((SocketConnection.connected.value ?? false) &&
+            driver != null &&
+            inRadius) {
+          if (!await stopPassengerDialog(context)) return;
+          SocketConnection.channel.add(
+            jsonEncode({'type': typeStopPassenger, 'data': {}}),
+          );
+        }
+        if (context.mounted) Navigator.pop(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Passenger'),
+          actions: [
+            SwitchModeButton(
               context: context,
-              driver: driver!,
-              mapController: mapController,
-              coordinates: coordinates,
-              showArrived: showArrived,
-              showDistance: driverArrived,
-              onMove: () => setState(() => followDriver = false),
-              moveCameraController: moveCameraController,
-              onPressGPS: () => setState(() => followDriver = true),
-              followGPS: followDriver,
-              driverPositions: driverPositions,
+              skip: driver == null || !inRadius,
+              typeOfUser: TypeOfUser.passenger,
             ),
+            const UserImageButton(),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
+          ],
+        ),
+        body: !inRadius || driver == null
+            ? PassengerStatusScreen(
+                inRadius: inRadius,
+                driverRefused: driverRefused,
+                requestTimedOut: requestTimedOut,
+              )
+            : MapScreen(
+                context: context,
+                driver: driver!,
+                mapController: mapController,
+                coordinates: coordinates,
+                showArrived: showArrived,
+                showDistance: driverArrived,
+                onMove: () => setState(() => followDriver = false),
+                moveCameraController: moveCameraController,
+                onPressGPS: () => setState(() => followDriver = true),
+                followGPS: followDriver,
+                driverPositions: driverPositions,
+              ),
+      ),
     );
   }
 }
