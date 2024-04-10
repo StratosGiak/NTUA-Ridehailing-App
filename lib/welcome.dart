@@ -7,21 +7,19 @@ import 'package:uni_pool/constants.dart';
 import 'package:uni_pool/driver.dart';
 import 'package:uni_pool/passenger.dart';
 import 'package:uni_pool/utilities.dart';
-import 'package:uni_pool/webview.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:uni_pool/providers.dart';
+import 'package:uni_pool/authenticator.dart';
 import 'package:uni_pool/widgets/common_widgets.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({super.key});
-  static const name = 'Welcome';
+
   @override
   State<WelcomePage> createState() => _WelcomePageState();
 }
 
 class _WelcomePageState extends State<WelcomePage> {
-  bool? _connected = false;
-
   void _socketLoginHandler(message) {
     final decoded = jsonDecode(message);
     final type = decoded['type'];
@@ -51,44 +49,20 @@ class _WelcomePageState extends State<WelcomePage> {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
       context.read<User>().setUser(null);
-      _connected = false;
-      if (SocketConnection.channel.closeCode != 1000) {
+      if (SocketConnection.channel.closeCode == 4000) {
+        ScaffoldMessenger.of(context).showSnackBar(snackBarAuth);
+      } else if (SocketConnection.channel.closeCode == 4001) {
+        ScaffoldMessenger.of(context).showSnackBar(snackBarDuplicate);
+      } else if (SocketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
-      setState(() {});
-    }
-  }
-
-  void _navigateToMain(typeOfUser) {
-    switch (typeOfUser) {
-      case TypeOfUser.driver:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DriverPage()),
-        );
-        break;
-      case TypeOfUser.passenger:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const PassengerPage()),
-        );
-        break;
-      default:
     }
   }
 
   void _logInRequest() async {
-    final code = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const WebViewScreen(url: authHost),
-      ),
-    );
-    debugPrint(code);
-    if (code == null) return;
-    setState(() => _connected = null);
-    _connected = await SocketConnection.create(code);
-    setState(() {});
+    final idToken = await Authenticator.authenticate();
+    if (idToken == null) return;
+    await SocketConnection.create(idToken);
   }
 
   void _getLocationPermission() async {
@@ -98,14 +72,18 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
+  void _setHandlers() {
+    SocketConnection.receiveSubscription.onData(_socketLoginHandler);
+    SocketConnection.connectionSubscription.onData(_connectionHandler);
+  }
+
   @override
   void initState() {
     super.initState();
-    if (SocketConnection.connected) _connected = true;
-    SocketConnection.receiveSubscription.onData(_socketLoginHandler);
-    SocketConnection.connectionSubscription.onData(_connectionHandler);
+    _setHandlers();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _getLocationPermission();
+      _logInRequest();
     });
   }
 
@@ -130,9 +108,12 @@ class _WelcomePageState extends State<WelcomePage> {
                     ),
                   ),
                   const Spacer(flex: 1),
-                  UserImageButton(
-                    enablePress: _connected ?? false,
-                    showSignout: false,
+                  ValueListenableBuilder(
+                    valueListenable: SocketConnection.connected,
+                    builder: (context, value, child) => UserImageButton(
+                      enablePress: value ?? false,
+                      showSignout: false,
+                    ),
                   ),
                   const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
                 ],
@@ -143,64 +124,90 @@ class _WelcomePageState extends State<WelcomePage> {
                 style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
               ),
               const Spacer(flex: 10),
-              TextButton(
-                onPressed: _connected ?? true ? null : _logInRequest,
-                child: Selector<User, String>(
-                  selector: (_, user) => user.name,
-                  builder: (_, name, __) => Text(
-                    _connected == null
-                        ? 'Connecting...'
-                        : _connected!
-                            ? 'Logged in as\n$name'
-                            : 'Log in',
-                    style: const TextStyle(fontSize: 30),
-                    textAlign: TextAlign.center,
+              ValueListenableBuilder(
+                valueListenable: SocketConnection.connected,
+                builder: (context, value, child) => TextButton(
+                  onPressed: value ?? true ? null : _logInRequest,
+                  child: Selector<User, String>(
+                    selector: (_, user) => user.name,
+                    builder: (_, name, __) => Text(
+                      value == null
+                          ? 'Connecting...'
+                          : value
+                              ? 'Logged in as\n$name'
+                              : 'Log in',
+                      style: const TextStyle(fontSize: 30),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ),
-              Visibility(
-                visible: !(_connected ?? false),
-                maintainSize: true,
-                maintainAnimation: true,
-                maintainState: true,
-                child: const Text('You must be logged in to use the app'),
+              ValueListenableBuilder(
+                valueListenable: SocketConnection.connected,
+                builder: (context, value, child) => Visibility(
+                  visible: !(value ?? false),
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: const Text('You must be logged in to use the app'),
+                ),
               ),
               const Spacer(flex: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SubtitledButton(
-                    icon: const Icon(Icons.directions_car),
-                    subtitle: const Text('I am a driver'),
-                    onPressed: _connected ?? false
-                        ? () => _navigateToMain(TypeOfUser.driver)
-                        : null,
+                  ValueListenableBuilder(
+                    valueListenable: SocketConnection.connected,
+                    builder: (context, value, child) => SubtitledButton(
+                      icon: const Icon(Icons.directions_car),
+                      subtitle: const Text('I am a driver'),
+                      onPressed: value ?? false
+                          ? () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const DriverPage(),
+                                ),
+                              ).then((_) => _setHandlers())
+                          : null,
+                    ),
                   ),
                   const Padding(padding: EdgeInsets.all(35)),
-                  SubtitledButton(
-                    icon: const Icon(Icons.directions_walk),
-                    subtitle: const Text('I am a passenger'),
-                    onPressed: _connected ?? false
-                        ? () => _navigateToMain(TypeOfUser.passenger)
-                        : null,
+                  ValueListenableBuilder(
+                    valueListenable: SocketConnection.connected,
+                    builder: (context, value, child) => SubtitledButton(
+                      icon: const Icon(Icons.directions_walk),
+                      subtitle: const Text('I am a passenger'),
+                      onPressed: value ?? false
+                          ? () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const PassengerPage(),
+                                ),
+                              ).then((_) => _setHandlers())
+                          : null,
+                    ),
                   ),
                 ],
               ),
               const Spacer(flex: 20),
-              Visibility(
-                visible: _connected ?? false,
-                maintainSize: true,
-                maintainAnimation: true,
-                maintainState: true,
-                child: TextButton(
-                  onPressed: () async {
-                    bool reply = await signOutAlert(
-                      context: context,
-                      content: const SizedBox(),
-                    );
-                    if (reply) setState(() => _connected = false);
-                  },
-                  child: const Text('Sign out', style: TextStyle(fontSize: 25)),
+              ValueListenableBuilder(
+                valueListenable: SocketConnection.connected,
+                builder: (context, value, child) => Visibility(
+                  visible: value ?? false,
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: TextButton(
+                    onPressed: () async {
+                      bool reply = await signOutAlert(
+                        context: context,
+                        content: const SizedBox(),
+                      );
+                      if (reply) SocketConnection.connected.value = false;
+                    },
+                    child:
+                        const Text('Sign out', style: TextStyle(fontSize: 25)),
+                  ),
                 ),
               ),
               const Padding(padding: EdgeInsets.all(12)),

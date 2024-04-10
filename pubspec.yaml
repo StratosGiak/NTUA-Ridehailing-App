@@ -47,6 +47,7 @@ dependencies:
   flutter_rating_bar:
   palette_generator:
   mime:
+  flutter_appauth:
   flutter:
     sdk: flutter
 

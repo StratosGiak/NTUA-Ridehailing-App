@@ -14,6 +14,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:uni_pool/authenticator.dart';
 import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:uni_pool/widgets/common_widgets.dart';
@@ -134,10 +135,11 @@ Future<bool> signOutAlert({
   required BuildContext context,
   required Widget content,
 }) async {
-  void onConfirmPressed(BuildContext context) {
+  void onConfirmPressed(BuildContext context) async {
     SecureStorage.deleteAllSecure();
+    await Authenticator.endSession();
     SocketConnection.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
-    Navigator.pop(context, true);
+    SocketConnection.connected.value = false;
   }
 
   void onCancelPressed(BuildContext context) {

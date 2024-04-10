@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:uni_pool/constants.dart';
 
-class SocketConnection {
+class SocketConnection with ChangeNotifier {
   static final receiveController = StreamController<String>();
   static final receiveSubscription =
       receiveController.stream.listen((event) {});
@@ -12,26 +12,25 @@ class SocketConnection {
   static final connectionSubscription =
       connectionController.stream.listen((event) {});
   static late WebSocket channel;
-  static bool connected = false;
+  static ValueNotifier<bool?> connected = ValueNotifier(false);
   static int tries = 0;
 
-  SocketConnection._internal();
+  SocketConnection._();
 
-  static Future<bool> create(String token) async {
-    SocketConnection._internal();
+  static Future<void> create(String token) async {
+    SocketConnection._();
+    connected.value = null;
     final result = await connect(token);
     if (result != null) {
-      connected = true;
+      connected.value = true;
       channel = result;
       channel.listen(
         (data) => receiveController.add(data),
         onDone: () => _onDone(),
         onError: (error) => _onError(),
       );
-      return true;
     }
     tries = 0;
-    return false;
   }
 
   static Future<WebSocket?> connect(String token) async {
@@ -50,12 +49,12 @@ class SocketConnection {
   }
 
   static void _onDone() {
-    connected = false;
+    connected.value = false;
     connectionController.sink.add('done');
   }
 
   static void _onError() {
-    connected = false;
+    connected.value = false;
     connectionController.sink.add('error');
   }
 }

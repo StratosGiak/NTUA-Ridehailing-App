@@ -36,6 +36,20 @@ const snackBarConnectionLost = SnackBar(
   ),
 );
 
+const snackBarAuth = SnackBar(
+  duration: Duration(seconds: 5),
+  content: Text(
+    'There was an error during authentication',
+  ),
+);
+
+const snackBarDuplicate = SnackBar(
+  duration: Duration(seconds: 5),
+  content: Text(
+    'User is already logged in with another device. Please log out of all other devices',
+  ),
+);
+
 class ImageWithPlaceholder extends StatelessWidget {
   const ImageWithPlaceholder({
     super.key,
