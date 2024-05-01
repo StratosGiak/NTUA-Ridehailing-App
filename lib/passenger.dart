@@ -193,7 +193,7 @@ class _PassengerPageState extends State<PassengerPage>
         busStop.latitude,
         busStop.longitude,
       );
-      if (distanceToBusStop > busStopRange) return;
+      if (distanceToBusStop > busStopPassengerRange) return;
       inRadius = true;
       SocketConnection.channel.add(
         jsonEncode({
@@ -238,7 +238,7 @@ class _PassengerPageState extends State<PassengerPage>
       Duration(seconds: initalSeconds),
       () => Navigator.of(context, rootNavigator: true).pop(false),
     );
-    bool? reply = await acceptDialog(
+    final reply = await acceptDialog(
       context,
       timerDisplay: ValueListenableBuilder(
         valueListenable: remainingSeconds,
@@ -257,7 +257,7 @@ class _PassengerPageState extends State<PassengerPage>
     );
     countdownSecTimer.cancel();
     countdownDismissTimer.cancel();
-    if (reply ?? false) {
+    if (reply == true) {
       SocketConnection.channel
           .add(jsonEncode({'type': typePingDriver, 'data': true}));
     } else {
@@ -325,7 +325,7 @@ class _PassengerPageState extends State<PassengerPage>
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if ((SocketConnection.connected.value ?? false) &&
+        if ((SocketConnection.connected.value == true) &&
             driver != null &&
             inRadius) {
           if (!await stopPassengerDialog(context)) return;

@@ -50,8 +50,8 @@ const snackBarDuplicate = SnackBar(
   ),
 );
 
-class ImageWithPlaceholder extends StatelessWidget {
-  const ImageWithPlaceholder({
+class ImageWithPrompt extends StatelessWidget {
+  const ImageWithPrompt({
     super.key,
     this.imageProvider,
     this.onTap,
@@ -303,7 +303,8 @@ class UserProfileCard extends StatelessWidget {
                 final result = await pickImage(imageQuality: userImageQuality);
                 if (result == null || result.mimeType == null) return;
                 final newImage = await uploadImage(
-                  context.mounted ? context : null,
+                  // ignore: use_build_context_synchronously
+                  context,
                   TypeOfImage.users,
                   result.imagePath!,
                   result.mimeType!,
@@ -338,8 +339,13 @@ class UserAvatar extends StatelessWidget {
               radius: size,
               backgroundImage: imageProvider,
             ),
-            placeholder: (context, url) =>
-                const CircularProgressIndicator.adaptive(),
+            placeholder: (context, url) => Center(
+              child: SizedBox(
+                width: 2 * size,
+                height: 2 * size,
+                child: const CircularProgressIndicator.adaptive(),
+              ),
+            ),
             errorWidget: (context, url, error) => CircleAvatar(
               radius: size,
               backgroundImage:

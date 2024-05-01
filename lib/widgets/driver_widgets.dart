@@ -85,7 +85,7 @@ class CarList extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () async {
-                    bool? reply = await showAdaptiveDialog<bool>(
+                    final reply = await showAdaptiveDialog<bool>(
                       barrierDismissible: true,
                       context: context,
                       builder: (context) => AlertDialog.adaptive(
@@ -118,7 +118,7 @@ class CarList extends StatelessWidget {
                               ],
                       ),
                     );
-                    if (reply ?? false) {
+                    if (reply == true) {
                       SocketConnection.channel.add(
                         jsonEncode({
                           'type': typeRemoveCar,

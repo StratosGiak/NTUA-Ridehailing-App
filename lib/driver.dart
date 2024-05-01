@@ -5,7 +5,6 @@ import 'dart:math';
 
 import 'package:diacritic/diacritic.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -149,13 +148,15 @@ class _DriverPageState extends State<DriverPage> {
       passengerAcceptTimer?.cancel();
       refusedCooldownTimer?.cancel();
       driving = false;
-      inRadius = false;
       waitingForPassengers = false;
       passengersCancelled = false;
       requestTimedOut = false;
       passengers = [];
+      if (inRadius) {
       SocketConnection.channel
           .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
+      }
+      inRadius = false;
     } else {
       if (positionStream.isPaused) {
         positionStream.resume();
@@ -169,9 +170,7 @@ class _DriverPageState extends State<DriverPage> {
   void _sendDriver() async {
     if (!inRadius) {
       final pos = await Geolocator.getLastKnownPosition();
-      if (pos == null) {
-        return;
-      }
+      if (pos == null) return;
       coordinates = pos;
       if (Geolocator.distanceBetween(
             coordinates!.latitude,
@@ -179,7 +178,7 @@ class _DriverPageState extends State<DriverPage> {
             busStop.latitude,
             busStop.longitude,
           ) >
-          2500) {
+          busStopDriverRange) {
         return;
       }
       inRadius = true;
@@ -212,8 +211,7 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   void _acceptPassengers() async {
-    bool? reply = await acceptDialog(context);
-    reply ??= false;
+    final reply = await acceptDialog(context) ?? false;
     if (reply) {
       waitingForPassengers = true;
       SocketConnection.channel
@@ -456,7 +454,7 @@ class _DriverPageState extends State<DriverPage> {
                 valueListenable: selectedImage,
                 builder: (context, value, child) {
                   if (value.imagePath != null) {
-                    return ImageWithPlaceholder(
+                    return ImageWithPrompt(
                       imageProvider: Image.file(File(value.imagePath!)).image,
                       onTap: onTap,
                     );
@@ -482,7 +480,8 @@ class _DriverPageState extends State<DriverPage> {
       if (selectedImage.value.imagePath != null &&
           selectedImage.value.mimeType != null) {
         final image = await uploadImage(
-          context.mounted ? context : null,
+          // ignore: use_build_context_synchronously
+          context,
           TypeOfImage.cars,
           selectedImage.value.imagePath!,
           selectedImage.value.mimeType!,
@@ -616,15 +615,17 @@ class _DriverPageState extends State<DriverPage> {
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if ((SocketConnection.connected.value ?? false) &&
-            passengers.isNotEmpty &&
-            inRadius) {
-          if (!await stopDrivingDialog(context)) return;
+        if (SocketConnection.connected.value == true && inRadius) {
+          if (passengers.isEmpty || await stopDrivingDialog(context)) {
           SocketConnection.channel.add(
             jsonEncode({'type': typeStopDriver, 'data': {}}),
           );
+            if (context.mounted) Navigator.pop(context);
+          }
+          return;
+        } else if (mounted) {
+          Navigator.pop(context);
         }
-        if (context.mounted) Navigator.pop(context);
       },
       child: Scaffold(
         floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,

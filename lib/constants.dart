@@ -21,7 +21,8 @@ final mapBounds = LatLngBounds(
   const LatLng(37.97043, 23.80078),
 );
 
-const busStopRange = 100;
+const busStopPassengerRange = 100;
+const busStopDriverRange = 2500;
 const maxSeperation = 500;
 const arrivalRange = 100;
 const distanceFilter = 10;

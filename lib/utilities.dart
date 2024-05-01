@@ -121,7 +121,7 @@ Future<({String? imagePath, String? mimeType})?> pickImage({
 }
 
 Future<String?> uploadImage(
-  BuildContext? context,
+  BuildContext context,
   TypeOfImage typeOfImage,
   String path,
   String fileType,
@@ -142,10 +142,8 @@ Future<String?> uploadImage(
   if (response.statusCode == 200) {
     return response.body;
   }
-  if (response.statusCode == 413) {
-    if (context != null && context.mounted) {
+  if (response.statusCode == 413 && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(snackBarFileSize);
-    }
   }
   return null;
 }
@@ -170,7 +168,7 @@ Future<bool> signOutAlert({
   const confirmChild = Text('Sign out');
   const cancelChild = Text('Cancel');
 
-  bool? reply = await showAdaptiveDialog<bool>(
+  final reply = await showAdaptiveDialog<bool>(
     context: context,
     barrierDismissible: true,
     builder: (context) => AlertDialog.adaptive(
@@ -397,28 +395,39 @@ Future<List<double>?> arrivedDialog({
             ),
           ),
           const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-          ListView.separated(
+          Flexible(
+            child: ListView.separated(
             shrinkWrap: true,
             itemCount: users.length,
             itemBuilder: (context, index) {
               return ListTile(
-                title: Text("${users[index]['name']}"),
-                leading: UserAvatar(
+                  title: Text(
+                    "${users[index]['name']}",
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  leading: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: UserAvatar(
                   url: users[index]['picture'],
                   size: 26.0,
                 ),
-                subtitle: ratingBars[index],
+                  ),
+                  subtitle: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: ratingBars[index],
+                  ),
               );
             },
             separatorBuilder: (context, index) =>
                 const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
+            ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12.0),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, true),
@@ -472,7 +481,7 @@ Future<bool> switchModeDialog(
   const confirmChild = Text('Yes');
   const cancelChild = Text('No');
 
-  bool? reply = await showAdaptiveDialog<bool>(
+  final reply = await showAdaptiveDialog<bool>(
     context: context,
     barrierDismissible: true,
     builder: (context) {
@@ -507,7 +516,7 @@ Future<bool> switchModeDialog(
       );
     },
   );
-  return reply ?? false;
+  return reply == true;
 }
 
 Future<bool> stopDrivingDialog(BuildContext context) async {
@@ -522,7 +531,7 @@ Future<bool> stopDrivingDialog(BuildContext context) async {
   const confirmChild = Text('Yes');
   const cancelChild = Text('No');
 
-  bool? reply = await showAdaptiveDialog<bool>(
+  final reply = await showAdaptiveDialog<bool>(
     context: context,
     barrierDismissible: true,
     builder: (context) {
@@ -555,7 +564,7 @@ Future<bool> stopDrivingDialog(BuildContext context) async {
       );
     },
   );
-  return reply ?? false;
+  return reply == true;
 }
 
 Future<bool> stopPassengerDialog(BuildContext context) async {
@@ -570,7 +579,7 @@ Future<bool> stopPassengerDialog(BuildContext context) async {
   const confirmChild = Text('Yes');
   const cancelChild = Text('No');
 
-  bool? reply = await showAdaptiveDialog<bool>(
+  final reply = await showAdaptiveDialog<bool>(
     context: context,
     barrierDismissible: true,
     builder: (context) {
@@ -603,7 +612,7 @@ Future<bool> stopPassengerDialog(BuildContext context) async {
       );
     },
   );
-  return reply ?? false;
+  return reply == true;
 }
 
 List<Marker> usersToMarkers(List<Map<String, dynamic>> users) => users

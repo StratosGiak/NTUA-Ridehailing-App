@@ -24,7 +24,7 @@ class _WelcomePageState extends State<WelcomePage> {
     final decoded = jsonDecode(message);
     final type = decoded['type'];
     final data = decoded['data'];
-    debugPrint('received $data');
+    debugPrint('received $type: $data');
     switch (type) {
       case typeLogin:
         if (data['id'] == null || data['name'] == null) return;
@@ -38,9 +38,6 @@ class _WelcomePageState extends State<WelcomePage> {
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
         context.read<User>().setCarPicture(data.toString(), null);
         break;
-      default:
-        debugPrint('Invalid type: $type');
-        break;
     }
     setState(() {});
   }
@@ -49,9 +46,7 @@ class _WelcomePageState extends State<WelcomePage> {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
       context.read<User>().setUser(null);
-      if (SocketConnection.channel.closeCode == 4000) {
-        ScaffoldMessenger.of(context).showSnackBar(snackBarAuth);
-      } else if (SocketConnection.channel.closeCode == 4001) {
+      if (SocketConnection.channel.closeCode == 4001) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarDuplicate);
       } else if (SocketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
@@ -91,39 +86,34 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              const Padding(padding: EdgeInsets.symmetric(vertical: 2.0)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    child: IconButton(
+                  IconButton(
                       icon: const Icon(Icons.help),
                       iconSize: 35,
                       onPressed: () => (),
                     ),
-                  ),
-                  const Spacer(flex: 1),
                   ValueListenableBuilder(
                     valueListenable: SocketConnection.connected,
                     builder: (context, value, child) => UserImageButton(
-                      enablePress: value ?? false,
+                      enablePress: value == true,
                       showSignout: false,
                     ),
                   ),
-                  const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
                 ],
               ),
-              const Spacer(flex: 10),
+            ),
+            const Spacer(flex: 1),
               const Text(
                 'LOGO',
                 style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
               ),
-              const Spacer(flex: 10),
+            const Spacer(flex: 1),
               ValueListenableBuilder(
                 valueListenable: SocketConnection.connected,
                 builder: (context, value, child) => TextButton(
@@ -145,23 +135,23 @@ class _WelcomePageState extends State<WelcomePage> {
               ValueListenableBuilder(
                 valueListenable: SocketConnection.connected,
                 builder: (context, value, child) => Visibility(
-                  visible: !(value ?? false),
+                visible: value != true,
                   maintainSize: true,
                   maintainAnimation: true,
                   maintainState: true,
                   child: const Text('You must be logged in to use the app'),
                 ),
               ),
-              const Spacer(flex: 12),
+            const Spacer(flex: 1),
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   ValueListenableBuilder(
                     valueListenable: SocketConnection.connected,
                     builder: (context, value, child) => SubtitledButton(
                       icon: const Icon(Icons.directions_car),
                       subtitle: const Text('I am a driver'),
-                      onPressed: value ?? false
+                    onPressed: value == true
                           ? () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -171,13 +161,12 @@ class _WelcomePageState extends State<WelcomePage> {
                           : null,
                     ),
                   ),
-                  const Padding(padding: EdgeInsets.all(35)),
                   ValueListenableBuilder(
                     valueListenable: SocketConnection.connected,
                     builder: (context, value, child) => SubtitledButton(
                       icon: const Icon(Icons.directions_walk),
                       subtitle: const Text('I am a passenger'),
-                      onPressed: value ?? false
+                    onPressed: value == true
                           ? () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -189,11 +178,11 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                 ],
               ),
-              const Spacer(flex: 20),
+            const Spacer(flex: 2),
               ValueListenableBuilder(
                 valueListenable: SocketConnection.connected,
                 builder: (context, value, child) => Visibility(
-                  visible: value ?? false,
+                visible: value == true,
                   maintainSize: true,
                   maintainAnimation: true,
                   maintainState: true,
@@ -205,14 +194,12 @@ class _WelcomePageState extends State<WelcomePage> {
                       );
                       if (reply) SocketConnection.connected.value = false;
                     },
-                    child:
-                        const Text('Sign out', style: TextStyle(fontSize: 25)),
+                  child: const Text('Sign out', style: TextStyle(fontSize: 25)),
                   ),
                 ),
               ),
               const Padding(padding: EdgeInsets.all(12)),
             ],
-          ),
         ),
       ),
     );
