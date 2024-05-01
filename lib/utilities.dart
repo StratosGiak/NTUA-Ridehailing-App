@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -143,7 +144,7 @@ Future<String?> uploadImage(
     return response.body;
   }
   if (response.statusCode == 413 && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(snackBarFileSize);
+    ScaffoldMessenger.of(context).showSnackBar(snackBarFileSize);
   }
   return null;
 }
@@ -199,7 +200,60 @@ Future<bool> signOutAlert({
             ],
     ),
   );
-  return reply ?? false;
+  return reply == true;
+}
+
+Future<void> locationPermissionAlert({
+  required BuildContext context,
+  required LocationPermission permission,
+}) async {
+  void onConfirmPressed(BuildContext context) async {
+    if (permission == LocationPermission.denied) {
+      await Geolocator.requestPermission();
+    }
+    if (context.mounted) Navigator.pop(context);
+  }
+
+  void onCancelPressed(BuildContext context) {
+    Navigator.pop(context);
+  }
+
+  const confirmChild = Text('Ok');
+  const cancelChild = Text('Cancel');
+  final content =
+      'The app requires location services in order to function. ${permission == LocationPermission.denied ? 'Request permission to access location?' : 'Go to your phone\'s settings to enable location access'}';
+
+  await showAdaptiveDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) => AlertDialog.adaptive(
+      title: const Text('Location permission required'),
+      content: Text(content),
+      actions: Platform.isIOS
+          ? [
+              CupertinoDialogAction(
+                onPressed: () => onCancelPressed(context),
+                child: cancelChild,
+              ),
+              CupertinoDialogAction(
+                onPressed: () => onConfirmPressed(context),
+                isDefaultAction: true,
+                child: confirmChild,
+              ),
+            ]
+          : [
+              if (permission == LocationPermission.denied)
+                TextButton(
+                  onPressed: () => onCancelPressed(context),
+                  child: cancelChild,
+                ),
+              TextButton(
+                onPressed: () => onConfirmPressed(context),
+                child: confirmChild,
+              ),
+            ],
+    ),
+  );
 }
 
 Future<Color?> colorWheelDialog(BuildContext context, Color? initialColor) {
@@ -325,13 +379,15 @@ Future<bool?> acceptDialog(BuildContext context, {Widget? timerDisplay}) {
   }
 }
 
-Future<List<double>?> arrivedDialog({
+Future<void> arrivedDialog({
   required BuildContext context,
   required List<Map<String, dynamic>> users,
   required TypeOfUser typeOfUser,
 }) async {
-  List<ValueNotifier<double>> ratings =
-      List.generate(users.length, (index) => ValueNotifier(0));
+  List<ValueNotifier<double>> ratings = List.generate(
+    users.length,
+    (index) => ValueNotifier(0),
+  );
   List<Widget> ratingBars = List.generate(
     users.length,
     (index) => ValueListenableBuilder(
@@ -397,10 +453,10 @@ Future<List<double>?> arrivedDialog({
           const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
           Flexible(
             child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              return ListTile(
+              shrinkWrap: true,
+              itemCount: users.length,
+              itemBuilder: (context, index) {
+                return ListTile(
                   title: Text(
                     "${users[index]['name']}",
                     overflow: TextOverflow.ellipsis,
@@ -408,18 +464,18 @@ Future<List<double>?> arrivedDialog({
                   leading: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: UserAvatar(
-                  url: users[index]['picture'],
-                  size: 26.0,
-                ),
+                      url: users[index]['picture'],
+                      size: 26.0,
+                    ),
                   ),
                   subtitle: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: ratingBars[index],
                   ),
-              );
-            },
-            separatorBuilder: (context, index) =>
-                const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
+                );
+              },
+              separatorBuilder: (context, index) =>
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
             ),
           ),
           Align(
@@ -451,17 +507,19 @@ Future<List<double>?> arrivedDialog({
       ),
     ),
   );
-  bool? reply;
-  if (ModalRoute.of(context)?.isCurrent != true) {
-    Navigator.pop(context);
-    reply = await Navigator.push<bool>(context, dialogRoute);
-  } else {
-    reply = await Navigator.push<bool>(context, dialogRoute);
-  }
-  if (!(reply ?? false)) return null;
-  final ratingsList = ratings.map((e) => e.value).toList();
-  if (ratingsList.every((element) => element == 0)) return null;
-  return ratingsList;
+  if (ModalRoute.of(context)?.isCurrent != true) Navigator.pop(context);
+  final reply = await Navigator.push<bool>(context, dialogRoute);
+  if (reply != true) return;
+  final ratingList = ratings.map((e) => e.value).toList();
+  SocketConnection.channel.add(
+    jsonEncode({
+      'type': typeSendRatings,
+      'data': {
+        'ids': users.map((e) => e['id']).toList(),
+        'ratings': ratingList,
+      },
+    }),
+  );
 }
 
 Future<bool> switchModeDialog(

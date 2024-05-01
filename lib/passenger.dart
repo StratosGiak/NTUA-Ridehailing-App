@@ -147,24 +147,13 @@ class _PassengerPageState extends State<PassengerPage>
           LatLng(coordinates!.latitude, coordinates!.longitude),
           15.5,
         );
-        final List<double>? rating = await arrivedDialog(
+        await arrivedDialog(
           context: context,
           users: [driver!],
           typeOfUser: TypeOfUser.driver,
         );
-        if (rating != null) {
-          SocketConnection.channel.add(
-            jsonEncode({
-              'type': typeSendRatings,
-              'data': {
-                'users': [driver!['id']],
-                'ratings': rating,
-              },
-            }),
-          );
-        }
         if (!mounted) return;
-        Navigator.pop(context);
+        Navigator.popUntil(context, (route) => route.isFirst);
         break;
       case typeDeleteUserPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);

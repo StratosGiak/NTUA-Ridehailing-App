@@ -28,6 +28,7 @@ class Car {
 class User with ChangeNotifier {
   String id;
   String name;
+  String givenName;
   String? picture;
   int ratingsSum;
   int ratingsCount;
@@ -36,6 +37,7 @@ class User with ChangeNotifier {
   User({
     this.id = 'INVALID',
     this.name = '',
+    this.givenName = '',
     this.ratingsSum = 0,
     this.ratingsCount = 0,
     this.cars = const {},
@@ -44,6 +46,7 @@ class User with ChangeNotifier {
   User.userFromMap(Map<String, dynamic> user)
       : id = user['id'],
         name = user['name'],
+        givenName = user['givenName'] ?? user['name'],
         picture = user['picture'],
         ratingsSum = user['ratings_sum'],
         ratingsCount = user['ratings_count'],
@@ -54,6 +57,7 @@ class User with ChangeNotifier {
     if (user != null) {
       id = user['id'];
       name = user['name'];
+      givenName = user['givenName'] ?? user['name'];
       picture = user['picture'];
       ratingsSum = user['ratings_sum'];
       ratingsCount = user['ratings_count'];
@@ -62,6 +66,7 @@ class User with ChangeNotifier {
     } else {
       id = 'INVALID';
       name = '';
+      givenName = '';
       picture = null;
       ratingsSum = 0;
       ratingsCount = 0;

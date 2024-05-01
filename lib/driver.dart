@@ -153,8 +153,8 @@ class _DriverPageState extends State<DriverPage> {
       requestTimedOut = false;
       passengers = [];
       if (inRadius) {
-      SocketConnection.channel
-          .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
+        SocketConnection.channel
+            .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
       }
       inRadius = false;
     } else {
@@ -550,24 +550,13 @@ class _DriverPageState extends State<DriverPage> {
       );
       SocketConnection.channel
           .add(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
-      final List<double>? ratings = await arrivedDialog(
+      await arrivedDialog(
         context: context,
         users: passengers,
         typeOfUser: TypeOfUser.passenger,
       );
-      if (ratings != null) {
-        SocketConnection.channel.add(
-          jsonEncode({
-            'type': typeSendRatings,
-            'data': {
-              'users': passengers.map((e) => e['id']).toList(),
-              'ratings': ratings,
-            },
-          }),
-        );
-      }
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.popUntil(context, (route) => route.isFirst);
     }
     setState(() {});
   }
@@ -617,9 +606,9 @@ class _DriverPageState extends State<DriverPage> {
         if (didPop) return;
         if (SocketConnection.connected.value == true && inRadius) {
           if (passengers.isEmpty || await stopDrivingDialog(context)) {
-          SocketConnection.channel.add(
-            jsonEncode({'type': typeStopDriver, 'data': {}}),
-          );
+            SocketConnection.channel.add(
+              jsonEncode({'type': typeStopDriver, 'data': {}}),
+            );
             if (context.mounted) Navigator.pop(context);
           }
           return;

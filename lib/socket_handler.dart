@@ -13,7 +13,6 @@ class SocketConnection with ChangeNotifier {
       connectionController.stream.listen((event) {});
   static late WebSocket channel;
   static ValueNotifier<bool?> connected = ValueNotifier(false);
-  static int tries = 0;
 
   SocketConnection._();
 
@@ -30,7 +29,6 @@ class SocketConnection with ChangeNotifier {
         onError: (error) => _onError(),
       );
     }
-    tries = 0;
   }
 
   static Future<WebSocket?> connect(String token) async {
@@ -38,13 +36,11 @@ class SocketConnection with ChangeNotifier {
       return await WebSocket.connect(
         apiHost,
         headers: {'Sec-websocket-protocol': token},
-      ).timeout(const Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 10));
     } catch (error) {
-      ++tries;
-      if (tries > 3) return null;
-      debugPrint('CONNECTION TO SERVER FAILED. TRYING TO RECONNECT... $tries');
       await Future.delayed(const Duration(seconds: 2));
-      return await connect(token);
+      connected.value = false;
+      return null;
     }
   }
 

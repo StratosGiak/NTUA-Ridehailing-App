@@ -54,16 +54,21 @@ class _WelcomePageState extends State<WelcomePage> {
     }
   }
 
-  void _logInRequest() async {
+  void _connectToServer() async {
+    final locationPermission = await Geolocator.checkPermission();
+    if (locationPermission == LocationPermission.denied) {
+      if (!mounted) return;
+      locationPermissionAlert(
+        context: context,
+        permission: locationPermission,
+      );
+      return;
+    }
     final idToken = await Authenticator.authenticate();
     if (idToken == null) return;
     await SocketConnection.create(idToken);
-  }
-
-  void _getLocationPermission() async {
-    final permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      _getLocationPermission();
+    if (mounted && SocketConnection.connected.value != true) {
+      ScaffoldMessenger.of(context).showSnackBar(snackBarAuth);
     }
   }
 
@@ -76,28 +81,26 @@ class _WelcomePageState extends State<WelcomePage> {
   void initState() {
     super.initState();
     _setHandlers();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _getLocationPermission();
-      _logInRequest();
-    });
+    Geolocator.requestPermission();
+    //_connectToServer();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-          child: Column(
-            children: <Widget>[
+        child: Column(
+          children: <Widget>[
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                      icon: const Icon(Icons.help),
-                      iconSize: 35,
-                      onPressed: () => (),
-                    ),
+                    icon: const Icon(Icons.help),
+                    iconSize: 35,
+                    onPressed: () => (),
+                  ),
                   ValueListenableBuilder(
                     valueListenable: SocketConnection.connected,
                     builder: (context, value, child) => UserImageButton(
@@ -109,97 +112,97 @@ class _WelcomePageState extends State<WelcomePage> {
               ),
             ),
             const Spacer(flex: 1),
-              const Text(
-                'LOGO',
-                style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
-              ),
+            const Text(
+              'LOGO',
+              style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
+            ),
             const Spacer(flex: 1),
-              ValueListenableBuilder(
-                valueListenable: SocketConnection.connected,
-                builder: (context, value, child) => TextButton(
-                  onPressed: value ?? true ? null : _logInRequest,
-                  child: Selector<User, String>(
-                    selector: (_, user) => user.name,
-                    builder: (_, name, __) => Text(
-                      value == null
-                          ? 'Connecting...'
-                          : value
-                              ? 'Logged in as\n$name'
-                              : 'Log in',
-                      style: const TextStyle(fontSize: 30),
-                      textAlign: TextAlign.center,
-                    ),
+            ValueListenableBuilder(
+              valueListenable: SocketConnection.connected,
+              builder: (context, value, child) => TextButton(
+                onPressed: value ?? true ? null : _connectToServer,
+                child: Selector<User, String>(
+                  selector: (_, user) => user.givenName,
+                  builder: (_, givenName, __) => Text(
+                    value == null || value && givenName.isEmpty
+                        ? 'Connecting...'
+                        : value
+                            ? 'Logged in as $givenName'
+                            : 'Log in',
+                    style: const TextStyle(fontSize: 30),
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-              ValueListenableBuilder(
-                valueListenable: SocketConnection.connected,
-                builder: (context, value, child) => Visibility(
+            ),
+            ValueListenableBuilder(
+              valueListenable: SocketConnection.connected,
+              builder: (context, value, child) => Visibility(
                 visible: value != true,
-                  maintainSize: true,
-                  maintainAnimation: true,
-                  maintainState: true,
-                  child: const Text('You must be logged in to use the app'),
-                ),
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: const Text('You must be logged in to use the app'),
               ),
+            ),
             const Spacer(flex: 1),
-              Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ValueListenableBuilder(
-                    valueListenable: SocketConnection.connected,
-                    builder: (context, value, child) => SubtitledButton(
-                      icon: const Icon(Icons.directions_car),
-                      subtitle: const Text('I am a driver'),
+              children: [
+                ValueListenableBuilder(
+                  valueListenable: SocketConnection.connected,
+                  builder: (context, value, child) => SubtitledButton(
+                    icon: const Icon(Icons.directions_car),
+                    subtitle: const Text('I am a driver'),
                     onPressed: value == true
-                          ? () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const DriverPage(),
-                                ),
-                              ).then((_) => _setHandlers())
-                          : null,
-                    ),
-                  ),
-                  ValueListenableBuilder(
-                    valueListenable: SocketConnection.connected,
-                    builder: (context, value, child) => SubtitledButton(
-                      icon: const Icon(Icons.directions_walk),
-                      subtitle: const Text('I am a passenger'),
-                    onPressed: value == true
-                          ? () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const PassengerPage(),
-                                ),
-                              ).then((_) => _setHandlers())
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
-            const Spacer(flex: 2),
-              ValueListenableBuilder(
-                valueListenable: SocketConnection.connected,
-                builder: (context, value, child) => Visibility(
-                visible: value == true,
-                  maintainSize: true,
-                  maintainAnimation: true,
-                  maintainState: true,
-                  child: TextButton(
-                    onPressed: () async {
-                      bool reply = await signOutAlert(
-                        context: context,
-                        content: const SizedBox(),
-                      );
-                      if (reply) SocketConnection.connected.value = false;
-                    },
-                  child: const Text('Sign out', style: TextStyle(fontSize: 25)),
+                        ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const DriverPage(),
+                              ),
+                            ).then((_) => _setHandlers())
+                        : null,
                   ),
                 ),
+                ValueListenableBuilder(
+                  valueListenable: SocketConnection.connected,
+                  builder: (context, value, child) => SubtitledButton(
+                    icon: const Icon(Icons.directions_walk),
+                    subtitle: const Text('I am a passenger'),
+                    onPressed: value == true
+                        ? () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const PassengerPage(),
+                              ),
+                            ).then((_) => _setHandlers())
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(flex: 2),
+            ValueListenableBuilder(
+              valueListenable: SocketConnection.connected,
+              builder: (context, value, child) => Visibility(
+                visible: value == true,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: TextButton(
+                  onPressed: () async {
+                    bool reply = await signOutAlert(
+                      context: context,
+                      content: const SizedBox(),
+                    );
+                    if (reply) SocketConnection.connected.value = false;
+                  },
+                  child: const Text('Sign out', style: TextStyle(fontSize: 25)),
+                ),
               ),
-              const Padding(padding: EdgeInsets.all(12)),
-            ],
+            ),
+            const Padding(padding: EdgeInsets.all(12)),
+          ],
         ),
       ),
     );
