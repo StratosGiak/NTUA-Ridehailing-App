@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uni_pool/providers.dart';
 import 'package:uni_pool/welcome.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations(
+    [DeviceOrientation.portraitDown, DeviceOrientation.portraitUp],
+  );
   runApp(const MyApp());
 }
 

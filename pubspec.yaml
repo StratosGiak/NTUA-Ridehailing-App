@@ -46,6 +46,7 @@ dependencies:
   flex_color_picker:
   flutter_rating_bar:
   palette_generator:
+  image:
   mime:
   flutter_appauth:
   flutter:

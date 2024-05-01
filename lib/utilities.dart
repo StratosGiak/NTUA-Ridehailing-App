@@ -19,9 +19,28 @@ import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:uni_pool/widgets/common_widgets.dart';
 import 'package:mime/mime.dart';
+import 'package:image/image.dart' as img;
 import 'constants.dart';
 
-StreamController<String> wsStreamController = StreamController.broadcast();
+Color? getAverageColor(File file) {
+  final image = img.decodeImage(file.readAsBytesSync());
+  if (image == null) return null;
+  double red = 0;
+  double green = 0;
+  double blue = 0;
+  final start = (image.height + 1) ~/ 4;
+  final end = start + image.height ~/ 2;
+  for (int i = 0; i < image.width; i++) {
+    for (int j = start; j < end; j++) {
+      final pixel = image.getPixel(i, j);
+      red += pixel.r;
+      green += pixel.g;
+      blue += pixel.b;
+    }
+  }
+  final count = image.width * (image.height ~/ 2);
+  return Color.fromARGB(255, red ~/ count, green ~/ count, blue ~/ count);
+}
 
 String convertCharacter(String c) {
   switch (c) {
@@ -353,8 +372,6 @@ Future<List<double>?> arrivedDialog({
     context: context,
     barrierDismissible: false,
     builder: (context) => Dialog(
-      insetPadding:
-          const EdgeInsets.symmetric(horizontal: 30.0, vertical: 24.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -374,7 +391,7 @@ Future<List<double>?> arrivedDialog({
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
-              "Please rate your experience with the ${typeOfUser.name}${users.length == 1 ? '' : 's'} (optional)",
+              'Please rate your experience with the ${typeOfUser.name} (optional)',
               style: const TextStyle(fontSize: 16.0),
               textAlign: TextAlign.center,
             ),
@@ -602,7 +619,7 @@ List<Marker> usersToMarkers(List<Map<String, dynamic>> users) => users
                 final color =
                     user['car'] != null && user['car']['color'] != null
                         ? Color(user['car']['color'])
-                        : colors[int.parse(user['id'][user['id'].length - 1])];
+                        : colors[user['id'].hashCode % 10];
                 // final luma = sqrt(
                 //   color.red * color.red * 0.299 +
                 //       color.green * color.green * 0.587 +

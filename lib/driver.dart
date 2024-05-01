@@ -2,14 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'dart:ui' as ui;
 
 import 'package:diacritic/diacritic.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:palette_generator/palette_generator.dart';
 import 'package:provider/provider.dart';
 import 'package:uni_pool/constants.dart';
 import 'package:uni_pool/providers.dart';
@@ -413,21 +411,7 @@ class _DriverPageState extends State<DriverPage> {
       if (result == null || result.mimeType == null) return;
       imageChanged = true;
       selectedImage.value = result;
-      ui.decodeImageFromList(File(result.imagePath!).readAsBytesSync(),
-          (image) async {
-        final byteData = await image.toByteData();
-        if (byteData == null) return;
-        final encodedImage =
-            EncodedImage(byteData, width: image.width, height: image.height);
-        compute(
-          (message) => PaletteGenerator.fromByteData(message),
-          encodedImage,
-        ).then(
-          (palette) => finalColor.value = palette.colors.length > 1
-              ? palette.colors.elementAt(1)
-              : palette.colors.first,
-        );
-      });
+      finalColor.value = getAverageColor(File(result.imagePath!));
     }
 
     final newCar = await showAdaptiveDialog<Map<String, dynamic>>(
@@ -489,7 +473,7 @@ class _DriverPageState extends State<DriverPage> {
         );
       },
     );
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 200), () {
       _modelNameController.clear();
       _licensePlateController.clear();
     });

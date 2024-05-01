@@ -396,9 +396,7 @@ class PassengerInfoBox extends StatelessWidget {
             tileColor: Colors.white,
             trailing: Icon(
               Icons.circle,
-              color: colors[int.parse(
-                passengers[index]['id'][passengers[index]['id'].length - 1],
-              )],
+              color: colors[passengers[index]['id'].hashCode % 10],
             ),
           );
         },
