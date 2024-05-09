@@ -389,7 +389,7 @@ class PassengerInfoBox extends StatelessWidget {
                 ),
               ),
             ),
-            title: Text("${passengers[index]['name']}"),
+            title: Text("${passengers[index]['full_name']}"),
             subtitle: passengers[index]['ratings_count'] > 0
                 ? RatingBarWithCount(user: passengers[index])
                 : null,

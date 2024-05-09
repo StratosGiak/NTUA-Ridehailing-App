@@ -316,7 +316,11 @@ Future<Color?> colorWheelDialog(BuildContext context, Color? initialColor) {
   );
 }
 
-Future<bool?> acceptDialog(BuildContext context, {Widget? timerDisplay}) {
+Future<bool?> acceptDialog(
+  BuildContext context,
+  TypeOfUser typeOfUser, {
+  Widget? timerDisplay,
+}) {
   final dialogRoute = DialogRoute<bool?>(
     context: context,
     barrierDismissible: false,
@@ -328,11 +332,11 @@ Future<bool?> acceptDialog(BuildContext context, {Widget? timerDisplay}) {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Padding(padding: EdgeInsets.all(5.0)),
-          const Padding(
-            padding: EdgeInsets.all(10.0),
+          Padding(
+            padding: const EdgeInsets.all(10.0),
             child: Text(
-              'A driver is available. Accept them?',
-              style: TextStyle(
+              '${typeOfUser == TypeOfUser.driver ? "Passengers are" : "A driver is"} available. Accept them?',
+              style: const TextStyle(
                 fontSize: 25.0,
                 fontWeight: FontWeight.bold,
               ),
@@ -456,7 +460,7 @@ Future<void> arrivedDialog({
               itemBuilder: (context, index) {
                 return ListTile(
                   title: Text(
-                    "${users[index]['name']}",
+                    "${users[index]['fullName']}",
                     overflow: TextOverflow.ellipsis,
                   ),
                   leading: FittedBox(
@@ -522,10 +526,8 @@ Future<void> arrivedDialog({
 
 Future<bool> switchModeDialog(
   BuildContext context,
-  bool skip,
   TypeOfUser typeOfUser,
 ) async {
-  if (skip) return Future.value(true);
   void onConfirmPressed(BuildContext context) {
     Navigator.pop(context, true);
   }
@@ -641,7 +643,7 @@ Future<bool> stopPassengerDialog(BuildContext context) async {
     builder: (context) {
       return AlertDialog.adaptive(
         title: const Text('Really cancel ride?'),
-        content: const Text('You will lose your drivers'),
+        content: const Text('You will lose your driver'),
         actions: Platform.isIOS
             ? [
                 CupertinoDialogAction(

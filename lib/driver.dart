@@ -64,9 +64,7 @@ class _DriverPageState extends State<DriverPage> {
 
   void socketDriverHandler(String message) {
     final decoded = jsonDecode(message);
-    if (decoded['type'] == null ||
-        decoded['type'] is! String ||
-        decoded['data'] == null) {
+    if (decoded['type'] == null || decoded['type'] is! String) {
       debugPrint('Received bad json: $message');
       return;
     }
@@ -210,7 +208,7 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   void _acceptPassengers() async {
-    final reply = await acceptDialog(context) ?? false;
+    final reply = await acceptDialog(context, TypeOfUser.driver) ?? false;
     if (reply) {
       waitingForPassengers = true;
       SocketConnection.channel
@@ -384,7 +382,7 @@ class _DriverPageState extends State<DriverPage> {
               Navigator.pop(
                 context,
                 ({
-                  'car_id': id,
+                  'id': id,
                   'model': modelName,
                   'license': licensePlate,
                   'seats': seats.value,
@@ -603,16 +601,13 @@ class _DriverPageState extends State<DriverPage> {
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if (SocketConnection.connected.value == true && inRadius) {
-          if (passengers.isEmpty || await stopDrivingDialog(context)) {
-            SocketConnection.channel.add(
-              jsonEncode({'type': typeStopDriver, 'data': {}}),
-            );
-            if (context.mounted) Navigator.pop(context);
-          }
-          return;
-        } else if (mounted) {
+        if (SocketConnection.connected.value != true || !inRadius) {
           Navigator.pop(context);
+        } else if (passengers.isEmpty || await stopDrivingDialog(context)) {
+          SocketConnection.channel.add(
+            jsonEncode({'type': typeStopDriver, 'data': {}}),
+          );
+          if (context.mounted) Navigator.pop(context);
         }
       },
       child: Scaffold(
@@ -622,7 +617,9 @@ class _DriverPageState extends State<DriverPage> {
           actions: [
             SwitchModeButton(
               context: context,
-              skip: passengers.isEmpty || !inRadius,
+              skipSendMessage:
+                  SocketConnection.connected.value != true || !inRadius,
+              skipDialog: passengers.isEmpty,
               typeOfUser: TypeOfUser.driver,
             ),
             const UserImageButton(),

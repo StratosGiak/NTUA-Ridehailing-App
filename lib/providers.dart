@@ -9,14 +9,14 @@ class Car {
   int? color;
 
   Car.fromMap(Map<String, dynamic> car)
-      : id = car['car_id'].toString(),
+      : id = car['id'].toString(),
         model = car['model'],
         seats = car['seats'],
         license = car['license'],
         picture = car['picture'],
         color = car['color'];
   Map<String, dynamic> toJson() => {
-        'car_id': id,
+        'id': id,
         'model': model,
         'seats': seats,
         'license': license,
@@ -27,7 +27,7 @@ class Car {
 
 class User with ChangeNotifier {
   String id;
-  String name;
+  String fullName;
   String givenName;
   String? picture;
   int ratingsSum;
@@ -36,7 +36,7 @@ class User with ChangeNotifier {
 
   User({
     this.id = 'INVALID',
-    this.name = '',
+    this.fullName = '',
     this.givenName = '',
     this.ratingsSum = 0,
     this.ratingsCount = 0,
@@ -45,8 +45,8 @@ class User with ChangeNotifier {
 
   User.userFromMap(Map<String, dynamic> user)
       : id = user['id'],
-        name = user['name'],
-        givenName = user['givenName'] ?? user['name'],
+        fullName = user['full_name'],
+        givenName = user['given_name'] ?? user['full_name'],
         picture = user['picture'],
         ratingsSum = user['ratings_sum'],
         ratingsCount = user['ratings_count'],
@@ -56,8 +56,8 @@ class User with ChangeNotifier {
   void setUser(Map<String, dynamic>? user) {
     if (user != null) {
       id = user['id'];
-      name = user['name'];
-      givenName = user['givenName'] ?? user['name'];
+      fullName = user['full_name'];
+      givenName = user['given_name'] ?? user['full_name'];
       picture = user['picture'];
       ratingsSum = user['ratings_sum'];
       ratingsCount = user['ratings_count'];
@@ -65,7 +65,7 @@ class User with ChangeNotifier {
           .map((key, value) => MapEntry(key, Car.fromMap(value)));
     } else {
       id = 'INVALID';
-      name = '';
+      fullName = '';
       givenName = '';
       picture = null;
       ratingsSum = 0;

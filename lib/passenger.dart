@@ -51,9 +51,7 @@ class _PassengerPageState extends State<PassengerPage>
 
   void socketPassengerHandler(message) async {
     final decoded = jsonDecode(message);
-    if (decoded['type'] == null ||
-        decoded['type'] is! String ||
-        decoded['data'] == null) {
+    if (decoded['type'] == null || decoded['type'] is! String) {
       debugPrint('Received bad json: $message');
       return;
     }
@@ -64,7 +62,7 @@ class _PassengerPageState extends State<PassengerPage>
       case typeGetDriver:
         if (driver == null) return;
         driver = data;
-        if (data.isEmpty) {
+        if (data == null) {
           HapticFeedback.heavyImpact();
           driver = null;
           driverArrived = false;
@@ -228,6 +226,7 @@ class _PassengerPageState extends State<PassengerPage>
     );
     final reply = await acceptDialog(
       context,
+      TypeOfUser.passenger,
       timerDisplay: ValueListenableBuilder(
         valueListenable: remainingSeconds,
         builder: (context, value, child) {
@@ -313,15 +312,14 @@ class _PassengerPageState extends State<PassengerPage>
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if ((SocketConnection.connected.value == true) &&
-            driver != null &&
-            inRadius) {
-          if (!await stopPassengerDialog(context)) return;
+        if (SocketConnection.connected.value != true || !inRadius) {
+          Navigator.pop(context);
+        } else if (driver == null || await stopPassengerDialog(context)) {
           SocketConnection.channel.add(
             jsonEncode({'type': typeStopPassenger, 'data': {}}),
           );
+          if (context.mounted) Navigator.pop(context);
         }
-        if (context.mounted) Navigator.pop(context);
       },
       child: Scaffold(
         appBar: AppBar(
@@ -329,7 +327,9 @@ class _PassengerPageState extends State<PassengerPage>
           actions: [
             SwitchModeButton(
               context: context,
-              skip: driver == null || !inRadius,
+              skipSendMessage:
+                  SocketConnection.connected.value != true || !inRadius,
+              skipDialog: driver == null,
               typeOfUser: TypeOfUser.passenger,
             ),
             const UserImageButton(),

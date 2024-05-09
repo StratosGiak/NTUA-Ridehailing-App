@@ -128,7 +128,7 @@ class DriverInfoBox extends StatelessWidget {
             ),
           ),
           tileColor: Colors.lightBlue,
-          title: Text("${driver['name']}"),
+          title: Text("${driver['full_name']}"),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

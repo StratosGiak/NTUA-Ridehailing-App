@@ -27,7 +27,7 @@ class _WelcomePageState extends State<WelcomePage> {
     debugPrint('received $type: $data');
     switch (type) {
       case typeLogin:
-        if (data['id'] == null || data['name'] == null) return;
+        if (data['id'] == null || data['full_name'] == null) break;
         context.read<User>().setUser(data);
         break;
       case typeDeleteUserPicture:

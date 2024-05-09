@@ -226,7 +226,7 @@ class UserProfileInfo extends StatelessWidget {
     return Selector<User,
         ({String name, String id, int ratingsSum, int ratingsCount})>(
       selector: (_, user) => (
-        name: user.name,
+        name: user.fullName,
         id: user.id,
         ratingsSum: user.ratingsSum,
         ratingsCount: user.ratingsCount
@@ -430,28 +430,21 @@ class SwitchModeButton extends StatelessWidget {
   const SwitchModeButton({
     super.key,
     required this.context,
-    required this.skip,
+    required this.skipSendMessage,
+    required this.skipDialog,
     required this.typeOfUser,
   });
 
   final BuildContext context;
-  final bool skip;
+  final bool skipSendMessage;
+  final bool skipDialog;
   final TypeOfUser typeOfUser;
 
   @override
   Widget build(context) {
     return IconButton(
       onPressed: () async {
-        if (await switchModeDialog(context, skip, typeOfUser) &&
-            context.mounted) {
-          SocketConnection.channel.add(
-            jsonEncode({
-              'type': typeOfUser == TypeOfUser.driver
-                  ? typeStopDriver
-                  : typeStopPassenger,
-              'data': {},
-            }),
-          );
+        if (skipSendMessage) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -460,6 +453,25 @@ class SwitchModeButton extends StatelessWidget {
                   : const DriverPage(),
             ),
           );
+        } else if (skipDialog || await switchModeDialog(context, typeOfUser)) {
+          SocketConnection.channel.add(
+            jsonEncode({
+              'type': typeOfUser == TypeOfUser.driver
+                  ? typeStopDriver
+                  : typeStopPassenger,
+              'data': {},
+            }),
+          );
+          if (context.mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => (typeOfUser == TypeOfUser.driver)
+                    ? const PassengerPage()
+                    : const DriverPage(),
+              ),
+            );
+          }
         }
       },
       iconSize: 26.0,
