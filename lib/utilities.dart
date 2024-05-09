@@ -16,7 +16,6 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:uni_pool/authenticator.dart';
-import 'package:uni_pool/sensitive_storage.dart';
 import 'package:uni_pool/socket_handler.dart';
 import 'package:uni_pool/widgets/common_widgets.dart';
 import 'package:mime/mime.dart';
@@ -154,7 +153,6 @@ Future<bool> signOutAlert({
   required Widget content,
 }) async {
   void onConfirmPressed(BuildContext context) async {
-    SecureStorage.deleteAllSecure();
     await Authenticator.endSession();
     SocketConnection.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
     SocketConnection.connected.value = false;

@@ -20,7 +20,6 @@ import 'package:uni_pool/widgets/common_widgets.dart';
 
 class DriverPage extends StatefulWidget {
   const DriverPage({super.key});
-  static const name = 'Driver';
   @override
   State<DriverPage> createState() => _DriverPageState();
 }

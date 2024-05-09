@@ -17,7 +17,6 @@ import 'package:uni_pool/widgets/passenger_widgets.dart';
 
 class PassengerPage extends StatefulWidget {
   const PassengerPage({super.key});
-  static const name = 'Passenger';
   @override
   State<PassengerPage> createState() => _PassengerPageState();
 }
