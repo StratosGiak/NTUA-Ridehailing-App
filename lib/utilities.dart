@@ -352,7 +352,7 @@ Future<bool?> acceptDialog(
                 onPressed: () => Navigator.pop(context, true),
                 style: ButtonStyle(
                   backgroundColor:
-                      MaterialStatePropertyAll(Colors.green.shade300),
+                      WidgetStatePropertyAll(Colors.green.shade300),
                 ),
                 iconSize: 55.0,
                 icon: const Icon(Icons.check_rounded),
@@ -360,8 +360,7 @@ Future<bool?> acceptDialog(
               IconButton.filled(
                 onPressed: () => Navigator.pop(context, false),
                 style: ButtonStyle(
-                  backgroundColor:
-                      MaterialStatePropertyAll(Colors.red.shade300),
+                  backgroundColor: WidgetStatePropertyAll(Colors.red.shade300),
                 ),
                 iconSize: 55.0,
                 icon: const Icon(Icons.close_rounded),
