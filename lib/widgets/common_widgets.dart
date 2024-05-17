@@ -8,12 +8,12 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:uni_pool/driver.dart';
-import 'package:uni_pool/passenger.dart';
-import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/utilities.dart';
-import 'package:uni_pool/constants.dart';
-import 'package:uni_pool/socket_handler.dart';
+import 'package:ntua_ridehailing/driver.dart';
+import 'package:ntua_ridehailing/passenger.dart';
+import 'package:ntua_ridehailing/providers.dart';
+import 'package:ntua_ridehailing/utilities.dart';
+import 'package:ntua_ridehailing/constants.dart';
+import 'package:ntua_ridehailing/socket_handler.dart';
 
 const snackBarNSFW = SnackBar(
   duration: Duration(seconds: 5),

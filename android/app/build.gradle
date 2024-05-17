@@ -23,7 +23,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.ridehailing_app"
+    namespace "gr.ntua.ece.ridehailing"
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 

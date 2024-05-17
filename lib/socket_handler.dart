@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:uni_pool/constants.dart';
+import 'package:ntua_ridehailing/constants.dart';
 
 class SocketConnection with ChangeNotifier {
   static final receiveController = StreamController<String>();

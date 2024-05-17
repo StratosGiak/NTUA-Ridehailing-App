@@ -1,4 +1,4 @@
-package com.example.ridehailing_app
+package gr.ntua.ece.ridehailing
 
 import io.flutter.embedding.android.FlutterActivity
 

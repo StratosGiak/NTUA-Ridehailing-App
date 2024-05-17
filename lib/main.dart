@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/welcome.dart';
+import 'package:ntua_ridehailing/providers.dart';
+import 'package:ntua_ridehailing/welcome.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

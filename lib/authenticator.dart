@@ -1,5 +1,5 @@
 import 'package:flutter_appauth/flutter_appauth.dart';
-import 'package:uni_pool/constants.dart';
+import 'package:ntua_ridehailing/constants.dart';
 
 class Authenticator {
   Authenticator._();

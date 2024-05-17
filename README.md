@@ -1,4 +1,4 @@
-# uni_pool
+# ntua_ridehailing
 
 A new Flutter project.
 

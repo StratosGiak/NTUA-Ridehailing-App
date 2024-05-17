@@ -5,15 +5,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:uni_pool/constants.dart';
-import 'package:uni_pool/providers.dart';
-import 'package:uni_pool/utilities.dart';
-import 'package:uni_pool/socket_handler.dart';
+import 'package:ntua_ridehailing/constants.dart';
+import 'package:ntua_ridehailing/providers.dart';
+import 'package:ntua_ridehailing/utilities.dart';
+import 'package:ntua_ridehailing/socket_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:uni_pool/widgets/common_widgets.dart';
-import 'package:uni_pool/widgets/passenger_widgets.dart';
+import 'package:ntua_ridehailing/widgets/common_widgets.dart';
+import 'package:ntua_ridehailing/widgets/passenger_widgets.dart';
 
 class PassengerPage extends StatefulWidget {
   const PassengerPage({super.key});
