@@ -20,7 +20,7 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => User(),
       child: MaterialApp(
-        title: 'Flutter Demo',
+        title: 'NTUA-Ridehailing',
         theme: ThemeData(
           scaffoldBackgroundColor: const Color.fromARGB(255, 236, 242, 248),
           colorScheme: ColorScheme.fromSeed(

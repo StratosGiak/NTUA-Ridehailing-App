@@ -460,7 +460,7 @@ Future<void> arrivedDialog({
               itemBuilder: (context, index) {
                 return ListTile(
                   title: Text(
-                    "${users[index]['fullName']}",
+                    "${users[index]['full_name']}",
                     overflow: TextOverflow.ellipsis,
                   ),
                   leading: FittedBox(
