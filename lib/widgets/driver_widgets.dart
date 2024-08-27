@@ -91,6 +91,7 @@ class CarList extends StatelessWidget {
                       barrierDismissible: true,
                       context: context,
                       builder: (context) => AlertDialog.adaptive(
+                        icon: const Icon(Icons.delete_outline),
                         title: const Text('Really delete car?'),
                         content: const Text(
                           'This action cannot be undone',

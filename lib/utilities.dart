@@ -170,6 +170,7 @@ Future<bool> signOutAlert({
     context: context,
     barrierDismissible: true,
     builder: (context) => AlertDialog.adaptive(
+      icon: const Icon(Icons.logout),
       title: const Text('Really sign out?'),
       content: content,
       actions: Platform.isIOS
@@ -280,7 +281,11 @@ Future<bool?> acceptDialog(
               textAlign: TextAlign.center,
             ),
           ),
-          if (timerDisplay != null) timerDisplay,
+          if (timerDisplay != null)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [const Icon(Icons.timer_sharp), timerDisplay],
+            ),
           const Padding(padding: EdgeInsets.all(10.0)),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
