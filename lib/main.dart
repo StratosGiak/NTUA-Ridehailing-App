@@ -9,11 +9,11 @@ void main() async {
   await SystemChrome.setPreferredOrientations(
     [DeviceOrientation.portraitDown, DeviceOrientation.portraitUp],
   );
-  runApp(const MyApp());
+  runApp(const RidehailingApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class RidehailingApp extends StatelessWidget {
+  const RidehailingApp({super.key});
 
   @override
   Widget build(BuildContext context) {
