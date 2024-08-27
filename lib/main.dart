@@ -22,10 +22,7 @@ class RidehailingApp extends StatelessWidget {
       child: MaterialApp(
         title: 'NTUA-Ridehailing',
         theme: ThemeData(
-          scaffoldBackgroundColor: const Color.fromARGB(255, 236, 242, 248),
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color.fromARGB(255, 110, 169, 236),
-          ),
+          colorSchemeSeed: Colors.blue,
           useMaterial3: true,
         ),
         home: const WelcomePage(),
