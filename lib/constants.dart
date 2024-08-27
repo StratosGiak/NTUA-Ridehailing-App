@@ -66,7 +66,6 @@ const typeDeletePicture = '!DELETEPICTURE';
 const typeDeleteUserPicture = '!DELETEUSERPICTURE';
 const typeDeleteCarPicture = '!DELETECARPICTURE';
 const typeRemoveCar = '!REMOVECAR';
-const typeGetDriver = '!GETDRIVER';
 const typeGetPassengers = '!GETPASSENGERS';
 const typePingPassengers = '!PINGPASSENGERS';
 const typePingDriver = '!PINGDRIVER';

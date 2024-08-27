@@ -59,7 +59,7 @@ class _PassengerPageState extends State<PassengerPage>
     final data = decoded['data'];
     debugPrint('received $type : $data');
     switch (type) {
-      case typeGetDriver:
+      case typeUpdateDriver:
         if (driver == null) return;
         driver = data;
         if (data == null) {
