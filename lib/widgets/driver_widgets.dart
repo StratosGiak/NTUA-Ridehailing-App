@@ -2,11 +2,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
 import 'package:ntua_ridehailing/constants.dart';
 import 'package:ntua_ridehailing/providers.dart';
@@ -193,6 +195,60 @@ class CarListScreen extends StatelessWidget {
       ),
     ];
     return Center(child: Column(children: children));
+  }
+}
+
+class ColorPickerPopover extends StatelessWidget {
+  const ColorPickerPopover({
+    super.key,
+    required this.colorNotifier,
+  });
+
+  final ValueNotifier<Color?> colorNotifier;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => showPopover(
+        context: context,
+        transition: PopoverTransition.other,
+        barrierColor: Colors.transparent,
+        bodyBuilder: (context) => SizedBox(
+          height: 250,
+          width: 250,
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: StatefulBuilder(
+              builder: (context, setColorWheelState) => ColorWheelPicker(
+                color: colorNotifier.value ?? Colors.black,
+                wheelWidth: 20,
+                onChanged: (newColor) => setColorWheelState(
+                  () => colorNotifier.value = newColor,
+                ),
+                onWheel: (wheel) => {},
+              ),
+            ),
+          ),
+        ),
+      ),
+      icon: ValueListenableBuilder(
+        valueListenable: colorNotifier,
+        builder: (context, value, child) {
+          if (value == null) {
+            return const SizedBox(
+              height: 40,
+              width: 40,
+              child: Icon(Icons.palette, size: 30),
+            );
+          }
+          return ColorIndicator(
+            borderColor: Colors.black45,
+            hasBorder: true,
+            color: value,
+          );
+        },
+      ),
+    );
   }
 }
 

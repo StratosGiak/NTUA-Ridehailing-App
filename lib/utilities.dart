@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -251,68 +250,6 @@ Future<void> locationPermissionAlert({
               ),
             ],
     ),
-  );
-}
-
-Future<Color?> colorWheelDialog(BuildContext context, Color? initialColor) {
-  return showAdaptiveDialog<Color>(
-    context: context,
-    barrierDismissible: true,
-    builder: (context) {
-      ValueNotifier<Color> newColor = initialColor != null
-          ? ValueNotifier(initialColor)
-          : ValueNotifier(Colors.red.shade900);
-      return Dialog(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 300,
-              width: 300,
-              child: ValueListenableBuilder(
-                valueListenable: newColor,
-                builder: (context, value, child) {
-                  return ColorWheelPicker(
-                    wheelWidth: 30,
-                    color: newColor.value,
-                    onChanged: (color) => newColor.value = color,
-                    onWheel: (wheel) {},
-                  );
-                },
-              ),
-            ),
-            const Padding(padding: EdgeInsets.all(8.0)),
-            ValueListenableBuilder(
-              valueListenable: newColor,
-              builder: (context, value, child) {
-                return ColorIndicator(
-                  height: 60,
-                  width: 60,
-                  borderColor: Colors.black45,
-                  hasBorder: true,
-                  color: value,
-                );
-              },
-            ),
-            const Padding(padding: EdgeInsets.all(10.0)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, newColor.value),
-                  child: const Text('Select'),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 8.0)),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  child: const Text('Cancel'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    },
   );
 }
 

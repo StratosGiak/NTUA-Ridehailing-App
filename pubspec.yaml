@@ -47,6 +47,7 @@ dependencies:
   image:
   mime:
   flutter_appauth:
+  popover:
   flutter:
     sdk: flutter
 

@@ -4,7 +4,6 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:diacritic/diacritic.dart';
-import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -337,25 +336,7 @@ class _DriverPageState extends State<DriverPage> {
         children: [
           const Text('Choose color'),
           const Padding(padding: EdgeInsets.symmetric(horizontal: 15.0)),
-          IconButton(
-            onPressed: () async {
-              Color? reply = await colorWheelDialog(context, finalColor.value);
-              if (reply != null) finalColor.value = reply;
-            },
-            icon: ValueListenableBuilder(
-              valueListenable: finalColor,
-              builder: (context, value, child) {
-                if (value == null) {
-                  return const Icon(Icons.palette, size: 30);
-                }
-                return ColorIndicator(
-                  borderColor: Colors.black45,
-                  hasBorder: true,
-                  color: value,
-                );
-              },
-            ),
-          ),
+          ColorPickerPopover(colorNotifier: finalColor),
           ValueListenableBuilder(
             valueListenable: finalColor,
             builder: (context, value, child) => Visibility(
