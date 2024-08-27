@@ -354,6 +354,10 @@ class _DriverPageState extends State<DriverPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               final modelName = _modelNameController.text;
@@ -373,10 +377,6 @@ class _DriverPageState extends State<DriverPage> {
               );
             },
             child: const Text('Ok'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
           ),
         ],
       ),
