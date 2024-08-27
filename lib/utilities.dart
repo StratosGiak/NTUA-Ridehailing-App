@@ -128,7 +128,7 @@ Future<String?> uploadImage(
   if (fileType != 'image/jpeg' && fileType != 'image/png') return null;
   var request = http.MultipartRequest(
     'POST',
-    Uri.parse('$mediaHost/images/${typeOfImage.name}'),
+    Uri.parse('$mediaHost/post/images/${typeOfImage.name}'),
   );
   request.files.add(
     await http.MultipartFile.fromPath(
@@ -137,9 +137,16 @@ Future<String?> uploadImage(
       contentType: MediaType('image', fileType.split('/')[1]),
     ),
   );
+  request.headers
+      .addAll({HttpHeaders.authorizationHeader: Authenticator.idToken ?? ''});
   final response = await http.Response.fromStream(await request.send());
   if (response.statusCode == 200) {
     return response.body;
+  }
+  if (response.statusCode == 401) {
+    await Authenticator.authenticate();
+    if (!context.mounted) return null;
+    return uploadImage(context, typeOfImage, path, fileType);
   }
   if (response.statusCode == 413 && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(snackBarFileSize);
