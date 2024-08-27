@@ -45,6 +45,7 @@ class _WelcomePageState extends State<WelcomePage> {
   void _connectionHandler(message) async {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
+      Navigator.popUntil(context, (route) => route.isFirst);
       context.read<User>().setUser(null);
       if (SocketConnection.channel.closeCode == 4001) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarDuplicate);

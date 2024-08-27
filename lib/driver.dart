@@ -35,7 +35,6 @@ class _DriverPageState extends State<DriverPage> {
   final moveCameraController = MoveCameraController();
   ValueNotifier<String?> selectedCar = ValueNotifier(null);
   late List<String> suggestions;
-  bool test = false;
   bool inRadius = false;
   bool driving = false;
   bool waitingForPassengers = false;
@@ -53,8 +52,8 @@ class _DriverPageState extends State<DriverPage> {
   void connectionHandler(String message) {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
-      context.read<User>().setUser(null);
       Navigator.popUntil(context, (route) => route.isFirst);
+      context.read<User>().setUser(null);
       if (SocketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
