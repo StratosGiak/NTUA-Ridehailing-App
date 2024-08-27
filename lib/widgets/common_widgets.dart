@@ -347,11 +347,15 @@ class UserAvatar extends StatelessWidget {
               radius: size,
               backgroundImage: imageProvider,
             ),
-            placeholder: (context, url) => Center(
-              child: SizedBox(
-                width: 2 * size,
-                height: 2 * size,
-                child: const CircularProgressIndicator.adaptive(),
+            placeholder: (context, url) => SizedBox(
+              width: 2 * size,
+              height: 2 * size,
+              child: Center(
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: const CircularProgressIndicator.adaptive(),
+                ),
               ),
             ),
             errorWidget: (context, url, error) => CircleAvatar(
