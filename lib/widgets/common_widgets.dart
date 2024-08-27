@@ -250,18 +250,19 @@ class UserProfileInfo extends StatelessWidget {
                   const Icon(Icons.star_rounded, color: Colors.amber),
             ),
             const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
-            TextButton(
-              onPressed: () async {
-                await signOutAlert(
-                  context: context,
-                  content: const SizedBox(),
-                );
-              },
-              child: const Text(
-                'Sign out',
-                style: TextStyle(fontSize: 16.0),
+            if (showSignout)
+              TextButton(
+                onPressed: () async {
+                  await signOutAlert(
+                    context: context,
+                    content: const SizedBox(),
+                  );
+                },
+                child: const Text(
+                  'Sign out',
+                  style: TextStyle(fontSize: 16.0),
+                ),
               ),
-            ),
             const Padding(padding: EdgeInsets.symmetric(vertical: 6.0)),
           ],
         );
