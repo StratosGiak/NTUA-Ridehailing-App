@@ -12,7 +12,7 @@ class Authenticator {
   static const appAuth = FlutterAppAuth();
   static String? idToken;
 
-  static Future<String?> authenticate() {
+  static Future<String?> authenticate() async {
     final request = AuthorizationTokenRequest(
       authClientID,
       '$appScheme:/auth',
@@ -20,10 +20,9 @@ class Authenticator {
       scopes: ['openid', 'profile', 'email'],
       additionalParameters: {'kc_idp_hint': 'saml'},
     );
-    return appAuth.authorizeAndExchangeCode(request).then((response) {
-      idToken = response?.idToken;
-      return idToken;
-    });
+    final response = await appAuth.authorizeAndExchangeCode(request);
+    idToken = response?.idToken;
+    return idToken;
   }
 
   static Future<EndSessionResponse?> endSession() {
