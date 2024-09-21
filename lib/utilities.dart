@@ -691,13 +691,22 @@ void showPassengerPicture(BuildContext context, String pictureURL) =>
             ),
             child: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: FittedBox(
-                child: CachedNetworkImage(
-                  cacheManager: CustomCacheManager(),
-                  imageUrl: '$mediaHost/images/users/$pictureURL',
-                  placeholder: (context, url) =>
-                      const CircularProgressIndicator.adaptive(),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+              child: CachedNetworkImage(
+                cacheManager: CustomCacheManager(),
+                imageUrl: '$mediaHost/images/users/$pictureURL',
+                placeholder: (context, url) => const Center(
+                  child: SizedBox(
+                    width: 80,
+                    height: 80,
+                    child: CircularProgressIndicator.adaptive(
+                      strokeWidth: 10.0,
+                      strokeCap: StrokeCap.round,
+                    ),
+                  ),
+                ),
+                errorWidget: (context, url, error) => const Icon(
+                  Icons.error,
+                  size: 80,
                 ),
               ),
             ),
@@ -715,27 +724,32 @@ void showDriverPictures(
     if (userPicture != null)
       Padding(
         padding: const EdgeInsets.all(8.0),
-        child: FittedBox(
-          child: CachedNetworkImage(
-            cacheManager: CustomCacheManager(),
-            imageUrl: '$mediaHost/images/users/$userPicture',
-            placeholder: (context, url) =>
-                const CircularProgressIndicator.adaptive(),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
+        child: CachedNetworkImage(
+          cacheManager: CustomCacheManager(),
+          imageUrl: '$mediaHost/images/users/$userPicture',
+          placeholder: (context, url) => const Center(
+            child: SizedBox(
+              width: 80,
+              height: 80,
+              child: CircularProgressIndicator.adaptive(
+                strokeWidth: 10.0,
+                strokeCap: StrokeCap.round,
+              ),
+            ),
           ),
+          errorWidget: (context, url, error) =>
+              const Icon(Icons.error, size: 80),
         ),
       ),
     if (carPicture != null)
       Padding(
         padding: const EdgeInsets.all(8.0),
-        child: FittedBox(
-          child: CachedNetworkImage(
-            cacheManager: CustomCacheManager(),
-            imageUrl: '$mediaHost/images/cars/$carPicture',
-            placeholder: (context, url) =>
-                const CircularProgressIndicator.adaptive(),
-            errorWidget: (context, url, error) => const Icon(Icons.error),
-          ),
+        child: CachedNetworkImage(
+          cacheManager: CustomCacheManager(),
+          imageUrl: '$mediaHost/images/cars/$carPicture',
+          placeholder: (context, url) =>
+              const CircularProgressIndicator.adaptive(),
+          errorWidget: (context, url, error) => const Icon(Icons.error),
         ),
       ),
   ];
