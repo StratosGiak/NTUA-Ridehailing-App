@@ -217,6 +217,9 @@ class _DriverPageState extends State<DriverPage> {
         requestTimedOut = true;
         waitingForResponse = false;
         arrivedAtBusStop = false;
+        if (_getPassengersStreamSubscription.isPaused) {
+          _getPassengersStreamSubscription.resume();
+        }
         setState(() {});
       });
     } else {
