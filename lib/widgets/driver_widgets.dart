@@ -1,9 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -30,17 +28,6 @@ class CarList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void onConfirmPressed(BuildContext context) {
-      Navigator.pop(context, true);
-    }
-
-    void onCancelPressed(BuildContext context) {
-      Navigator.pop(context, false);
-    }
-
-    const confirmChild = Text('Delete');
-    const cancelChild = Text('Cancel');
-
     final user = context.watch<User>();
     final cars = user.cars;
     final keys = cars.keys.toList();
@@ -52,6 +39,12 @@ class CarList extends StatelessWidget {
       child: ListView.separated(
         padding: EdgeInsets.zero,
         shrinkWrap: true,
+        separatorBuilder: (context, index) => const Divider(
+          indent: 20,
+          endIndent: 20,
+          height: 8,
+        ),
+        itemCount: cars.length,
         itemBuilder: (context, index) {
           return ListTile(
             shape: RoundedRectangleBorder(
@@ -87,42 +80,10 @@ class CarList extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () async {
-                    final reply = await showAdaptiveDialog<bool>(
-                      barrierDismissible: true,
-                      context: context,
-                      builder: (context) => AlertDialog.adaptive(
-                        icon: const Icon(Icons.delete_outline),
-                        title: const Text('Really delete car?'),
-                        content: const Text(
-                          'This action cannot be undone',
-                        ),
-                        actions: Platform.isIOS
-                            ? [
-                                CupertinoDialogAction(
-                                  onPressed: () => onCancelPressed(context),
-                                  isDefaultAction: true,
-                                  child: cancelChild,
-                                ),
-                                CupertinoDialogAction(
-                                  onPressed: () => onConfirmPressed(context),
-                                  isDestructiveAction: true,
-                                  child: confirmChild,
-                                ),
-                              ]
-                            : [
-                                TextButton(
-                                  onPressed: () => onCancelPressed(context),
-                                  child: cancelChild,
-                                ),
-                                TextButton(
-                                  onPressed: () => onConfirmPressed(context),
-                                  child: confirmChild,
-                                ),
-                              ],
-                      ),
-                    );
+                    final socket = context.read<SocketConnection>();
+                    final reply = await showDeleteCarDialog(context);
                     if (reply == true) {
-                      SocketConnection.channel.add(
+                      socket.channel.add(
                         jsonEncode({
                           'type': typeRemoveCar,
                           'data': keys[index],
@@ -137,12 +98,6 @@ class CarList extends StatelessWidget {
             ),
           );
         },
-        separatorBuilder: (context, index) => const Divider(
-          indent: 20,
-          endIndent: 20,
-          height: 8,
-        ),
-        itemCount: cars.length,
       ),
     );
   }

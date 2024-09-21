@@ -751,3 +751,51 @@ void showDriverPictures(
     },
   );
 }
+
+Future<bool?> showDeleteCarDialog(BuildContext context) {
+  void onConfirmPressed(BuildContext context) {
+    Navigator.pop(context, true);
+  }
+
+  void onCancelPressed(BuildContext context) {
+    Navigator.pop(context, false);
+  }
+
+  const confirmChild = Text('Delete');
+  const cancelChild = Text('Cancel');
+
+  return showAdaptiveDialog<bool>(
+    barrierDismissible: true,
+    context: context,
+    builder: (context) => AlertDialog.adaptive(
+      icon: const Icon(Icons.delete_outline),
+      title: const Text('Really delete car?'),
+      content: const Text(
+        'This action cannot be undone',
+      ),
+      actions: Platform.isIOS
+          ? [
+              CupertinoDialogAction(
+                onPressed: () => onCancelPressed(context),
+                isDefaultAction: true,
+                child: cancelChild,
+              ),
+              CupertinoDialogAction(
+                onPressed: () => onConfirmPressed(context),
+                isDestructiveAction: true,
+                child: confirmChild,
+              ),
+            ]
+          : [
+              TextButton(
+                onPressed: () => onCancelPressed(context),
+                child: cancelChild,
+              ),
+              TextButton(
+                onPressed: () => onConfirmPressed(context),
+                child: confirmChild,
+              ),
+            ],
+    ),
+  );
+}
