@@ -292,7 +292,16 @@ Future<bool?> acceptDialog(
           if (timerDisplay != null)
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [const Icon(Icons.timer_sharp), timerDisplay],
+              children: [
+                const Icon(
+                  Icons.timer_sharp,
+                  size: 30,
+                ),
+                const SizedBox(
+                  width: 10.0,
+                ),
+                timerDisplay,
+              ],
             ),
           const Padding(padding: EdgeInsets.all(10.0)),
           Row(
