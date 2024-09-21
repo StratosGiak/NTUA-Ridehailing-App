@@ -352,7 +352,7 @@ class _PassengerPageState extends State<PassengerPage>
                 mapController: mapController,
                 coordinates: coordinates,
                 showArrived: showArrived,
-                showDistance: driverArrived,
+                showDistance: !driverArrived,
                 onMove: () => setState(() => followDriver = false),
                 moveCameraController: moveCameraController,
                 onPressGPS: () => setState(() => followDriver = true),
