@@ -8,7 +8,7 @@ const mediaHost = 'https://ntua-ridehailing.dslab.ece.ntua.gr/media';
 const authIssuer = 'https://stg-keycloak.dslab.ece.ntua.gr/realms/osreg/';
 const authClientID = 'bbeee61f9adf603c75ae815be.ntua.ridehailing';
 const appScheme = 'gr.ntua.ece.ridehailing';
-const mapUrl = 'assets/map_tiles/{z}/{x}/{y}.png';
+const mapUri = 'assets/map_tiles/{z}/{x}/{y}.png';
 
 enum TypeOfUser { driver, passenger }
 

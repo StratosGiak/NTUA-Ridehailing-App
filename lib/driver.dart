@@ -39,7 +39,7 @@ class _DriverPageState extends State<DriverPage> {
   late List<String> suggestions;
   bool inRadius = false;
   bool driving = false;
-  bool waitingForPassengers = false;
+  bool waitingForResponse = false;
   bool requestTimedOut = false;
   bool passengersCancelled = false;
   bool arrivedAtBusStop = false;
@@ -78,7 +78,7 @@ class _DriverPageState extends State<DriverPage> {
         }
         break;
       case typeGetPassengers:
-        if (!driving || waitingForPassengers) return;
+        if (!driving || waitingForResponse) return;
         if (!_getPassengersStreamSubscription.isPaused) {
           _getPassengersStreamSubscription.pause();
         }
@@ -88,14 +88,14 @@ class _DriverPageState extends State<DriverPage> {
         _acceptPassengers();
         break;
       case typeUpdatePassenger:
-        if (!driving || !waitingForPassengers) return;
+        if (!driving || !waitingForResponse) return;
         passengerAcceptTimer?.cancel();
         if (data['cancelled'] != null) {
           passengers
               .removeWhere((element) => element['id'] == data['cancelled']);
           if (passengers.isEmpty) {
             passengersCancelled = true;
-            waitingForPassengers = false;
+            waitingForResponse = false;
             arrivedAtBusStop = false;
             if (_getPassengersStreamSubscription.isPaused) {
               _getPassengersStreamSubscription.resume();
@@ -145,7 +145,7 @@ class _DriverPageState extends State<DriverPage> {
       passengerAcceptTimer?.cancel();
       refusedCooldownTimer?.cancel();
       driving = false;
-      waitingForPassengers = false;
+      waitingForResponse = false;
       passengersCancelled = false;
       requestTimedOut = false;
       passengers = [];
@@ -209,13 +209,13 @@ class _DriverPageState extends State<DriverPage> {
   void _acceptPassengers() async {
     final reply = await acceptDialog(context, TypeOfUser.driver) ?? false;
     if (reply) {
-      waitingForPassengers = true;
+      waitingForResponse = true;
       socketConnection
           .send(jsonEncode({'type': typePingPassengers, 'data': {}}));
       passengerAcceptTimer =
           Timer(const Duration(seconds: pairingRequestTimeout), () {
         requestTimedOut = true;
-        waitingForPassengers = false;
+        waitingForResponse = false;
         arrivedAtBusStop = false;
         setState(() {});
       });
@@ -480,7 +480,7 @@ class _DriverPageState extends State<DriverPage> {
     }
   }
 
-  void _onPositionChange(Position? position) async {
+  void _onPositionChanged(Position? position) async {
     if (position == null) return;
     coordinates = position;
     _sendDriver();
@@ -556,7 +556,7 @@ class _DriverPageState extends State<DriverPage> {
         accuracy: LocationAccuracy.high,
         distanceFilter: distanceFilter,
       ),
-    ).listen(_onPositionChange);
+    ).listen(_onPositionChanged);
     positionStream.pause();
     WidgetsBinding.instance.addPostFrameCallback(
       (_) async => suggestions =
@@ -605,7 +605,7 @@ class _DriverPageState extends State<DriverPage> {
               skipDialog: passengers.isEmpty,
               typeOfUser: TypeOfUser.driver,
             ),
-            const UserImageButton(),
+            const UserAvatarButton(),
             const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
           ],
         ),
@@ -620,10 +620,10 @@ class _DriverPageState extends State<DriverPage> {
                     ? () => _createCar(null)
                     : null,
               )
-            : !waitingForPassengers || passengers.isEmpty
+            : !waitingForResponse || passengers.isEmpty
                 ? DriverStatusScreen(
                     inRadius: inRadius,
-                    waitingForPassengers: waitingForPassengers,
+                    waitingForPassengers: waitingForResponse,
                     requestTimeout: requestTimedOut,
                     passengersCancelled: passengersCancelled,
                   )

@@ -336,7 +336,7 @@ class _PassengerPageState extends State<PassengerPage>
               skipDialog: driver == null,
               typeOfUser: TypeOfUser.passenger,
             ),
-            const UserImageButton(),
+            const UserAvatarButton(),
             const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
           ],
         ),

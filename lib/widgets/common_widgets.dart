@@ -369,8 +369,8 @@ class UserAvatar extends StatelessWidget {
   }
 }
 
-class UserImageButton extends StatelessWidget {
-  const UserImageButton({
+class UserAvatarButton extends StatelessWidget {
+  const UserAvatarButton({
     super.key,
     this.enablePress = true,
     this.showSignout = true,
@@ -577,7 +577,7 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
       ),
       children: [
         TileLayer(
-          urlTemplate: mapUrl,
+          urlTemplate: mapUri,
           tileProvider: AssetTileProvider(),
           tileBounds: LatLngBounds(
             const LatLng(38.01304, 23.74121),
