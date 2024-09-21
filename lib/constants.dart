@@ -14,6 +14,8 @@ enum TypeOfUser { driver, passenger }
 
 enum TypeOfImage { users, cars }
 
+enum SocketStatus { connected, disconnected, connecting }
+
 const busStop = LatLng(37.9923, 23.7764);
 const university = LatLng(37.978639, 23.782778);
 final mapBounds = LatLngBounds(

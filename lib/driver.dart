@@ -24,6 +24,8 @@ class DriverPage extends StatefulWidget {
 }
 
 class _DriverPageState extends State<DriverPage> {
+  late final SocketConnection socketConnection;
+  late final User user;
   List<Map<String, dynamic>> passengers = [];
   final Stream _getPassengersStream =
       Stream.periodic(const Duration(seconds: 2), (int count) {});
@@ -52,9 +54,9 @@ class _DriverPageState extends State<DriverPage> {
   void connectionHandler(String message) {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
+      user.setUser(null);
       Navigator.popUntil(context, (route) => route.isFirst);
-      context.read<User>().setUser(null);
-      if (SocketConnection.channel.closeCode != 1000) {
+      if (socketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
     }
@@ -111,19 +113,19 @@ class _DriverPageState extends State<DriverPage> {
         }
         break;
       case typeAddCar:
-        context.read<User>().addCar(Car.fromMap(data));
+        user.addCar(Car.fromMap(data));
         break;
       case typeRemoveCar:
         selectedCar.value = null;
-        context.read<User>().removeCar(data);
+        user.removeCar(data);
         break;
       case typeDeleteUserPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
-        context.read<User>().setUserPicture(null);
+        user.setUserPicture(null);
         break;
       case typeDeleteCarPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
-        context.read<User>().setCarPicture(data.toString(), null);
+        user.setCarPicture(data.toString(), null);
         break;
       default:
         debugPrint('Invalid type: $type');
@@ -148,8 +150,7 @@ class _DriverPageState extends State<DriverPage> {
       requestTimedOut = false;
       passengers = [];
       if (inRadius) {
-        SocketConnection.channel
-            .add(jsonEncode({'type': typeStopDriver, 'data': {}}));
+        socketConnection.send(jsonEncode({'type': typeStopDriver, 'data': {}}));
       }
       inRadius = false;
     } else {
@@ -178,11 +179,11 @@ class _DriverPageState extends State<DriverPage> {
       }
       inRadius = true;
       if (!mounted) return;
-      SocketConnection.channel.add(
+      socketConnection.send(
         jsonEncode({
           'type': typeNewDriver,
           'data': {
-            'car': context.read<User>().cars[selectedCar.value],
+            'car': user.cars[selectedCar.value],
             'coords': {
               'latitude': coordinates!.latitude,
               'longitude': coordinates!.longitude,
@@ -191,7 +192,7 @@ class _DriverPageState extends State<DriverPage> {
         }),
       );
     } else {
-      SocketConnection.channel.add(
+      socketConnection.send(
         jsonEncode({
           'type': typeUpdateDriver,
           'data': {
@@ -209,8 +210,8 @@ class _DriverPageState extends State<DriverPage> {
     final reply = await acceptDialog(context, TypeOfUser.driver) ?? false;
     if (reply) {
       waitingForPassengers = true;
-      SocketConnection.channel
-          .add(jsonEncode({'type': typePingPassengers, 'data': {}}));
+      socketConnection
+          .send(jsonEncode({'type': typePingPassengers, 'data': {}}));
       passengerAcceptTimer =
           Timer(const Duration(seconds: pairingRequestTimeout), () {
         requestTimedOut = true;
@@ -237,7 +238,7 @@ class _DriverPageState extends State<DriverPage> {
         ValueNotifier((imagePath: null, mimeType: null));
     ValueNotifier<Color?> finalColor = ValueNotifier(null);
     ValueNotifier<int> seats = ValueNotifier<int>(2);
-    final car = id != null ? context.read<User>().cars[id] : null;
+    final car = id != null ? user.cars[id] : null;
     if (car != null && car.color != null) finalColor.value = Color(car.color!);
     final formKey = GlobalKey<FormState>();
     final carForm = Form(
@@ -469,11 +470,11 @@ class _DriverPageState extends State<DriverPage> {
       }
     }
     if (id != null) {
-      SocketConnection.channel.add(
+      socketConnection.send(
         jsonEncode({'type': typeUpdateCar, 'data': newCar}),
       );
     } else {
-      SocketConnection.channel.add(
+      socketConnection.send(
         jsonEncode({'type': typeAddCar, 'data': newCar}),
       );
     }
@@ -525,8 +526,8 @@ class _DriverPageState extends State<DriverPage> {
         LatLng(coordinates!.latitude, coordinates!.longitude),
         15.5,
       );
-      SocketConnection.channel
-          .add(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
+      socketConnection
+          .send(jsonEncode({'type': typeArrivedDestination, 'data': {}}));
       await arrivedDialog(
         context: context,
         users: passengers,
@@ -541,11 +542,13 @@ class _DriverPageState extends State<DriverPage> {
   @override
   void initState() {
     super.initState();
-    SocketConnection.receiveSubscription.onData(socketDriverHandler);
-    SocketConnection.connectionSubscription.onData(connectionHandler);
+    user = context.read<User>();
+    socketConnection = context.read<SocketConnection>();
+    socketConnection.receiveSubscription.onData(socketDriverHandler);
+    socketConnection.connectionSubscription.onData(connectionHandler);
     _getPassengersStreamSubscription = _getPassengersStream.listen((event) {
-      SocketConnection.channel
-          .add(jsonEncode({'type': typeGetPassengers, 'data': {}}));
+      socketConnection
+          .send(jsonEncode({'type': typeGetPassengers, 'data': {}}));
     });
     _getPassengersStreamSubscription.pause();
     positionStream = Geolocator.getPositionStream(
@@ -581,12 +584,11 @@ class _DriverPageState extends State<DriverPage> {
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if (SocketConnection.connected.value != true || !inRadius) {
+        if (socketConnection.status != SocketStatus.connected || !inRadius) {
           Navigator.pop(context);
         } else if (passengers.isEmpty || await stopDrivingDialog(context)) {
-          SocketConnection.channel.add(
-            jsonEncode({'type': typeStopDriver, 'data': {}}),
-          );
+          socketConnection
+              .send(jsonEncode({'type': typeStopDriver, 'data': {}}));
           if (context.mounted) Navigator.pop(context);
         }
       },
@@ -598,7 +600,8 @@ class _DriverPageState extends State<DriverPage> {
             SwitchModeButton(
               context: context,
               skipSendMessage:
-                  SocketConnection.connected.value != true || !inRadius,
+                  socketConnection.status != SocketStatus.connected ||
+                      !inRadius,
               skipDialog: passengers.isEmpty,
               typeOfUser: TypeOfUser.driver,
             ),

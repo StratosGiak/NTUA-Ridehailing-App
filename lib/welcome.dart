@@ -20,6 +20,9 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> {
+  late final SocketConnection socketConnection;
+  late final User user;
+
   void _socketLoginHandler(message) {
     final decoded = jsonDecode(message);
     final type = decoded['type'];
@@ -28,15 +31,15 @@ class _WelcomePageState extends State<WelcomePage> {
     switch (type) {
       case typeLogin:
         if (data['id'] == null || data['full_name'] == null) break;
-        context.read<User>().setUser(data);
+        user.setUser(data);
         break;
       case typeDeleteUserPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
-        context.read<User>().setUserPicture(null);
+        user.setUserPicture(null);
         break;
       case typeDeleteCarPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
-        context.read<User>().setCarPicture(data.toString(), null);
+        user.setCarPicture(data.toString(), null);
         break;
     }
     setState(() {});
@@ -45,11 +48,11 @@ class _WelcomePageState extends State<WelcomePage> {
   void _connectionHandler(message) async {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
+      user.setUser(null);
       Navigator.popUntil(context, (route) => route.isFirst);
-      context.read<User>().setUser(null);
-      if (SocketConnection.channel.closeCode == 4001) {
+      if (socketConnection.channel.closeCode == 4001) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarDuplicate);
-      } else if (SocketConnection.channel.closeCode != 1000) {
+      } else if (socketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
     }
@@ -67,20 +70,22 @@ class _WelcomePageState extends State<WelcomePage> {
     }
     final idToken = await Authenticator.authenticate();
     if (idToken == null) return;
-    await SocketConnection.create(idToken);
-    if (mounted && SocketConnection.connected.value != true) {
+    await socketConnection.create(idToken);
+    if (mounted && socketConnection.status != SocketStatus.connected) {
       ScaffoldMessenger.of(context).showSnackBar(snackBarAuthentication);
     }
   }
 
   void _setHandlers() {
-    SocketConnection.receiveSubscription.onData(_socketLoginHandler);
-    SocketConnection.connectionSubscription.onData(_connectionHandler);
+    socketConnection.receiveSubscription.onData(_socketLoginHandler);
+    socketConnection.connectionSubscription.onData(_connectionHandler);
   }
 
   @override
   void initState() {
     super.initState();
+    user = context.read<User>();
+    socketConnection = context.read<SocketConnection>();
     _setHandlers();
     Geolocator.requestPermission();
     //_connectToServer();
@@ -102,10 +107,9 @@ class _WelcomePageState extends State<WelcomePage> {
                     iconSize: 35,
                     onPressed: () => (),
                   ),
-                  ValueListenableBuilder(
-                    valueListenable: SocketConnection.connected,
-                    builder: (context, value, child) => UserImageButton(
-                      enablePress: value == true,
+                  Consumer<SocketConnection>(
+                    builder: (context, socket, child) => UserAvatarButton(
+                      enablePress: socket.status == SocketStatus.connected,
                       showSignout: false,
                     ),
                   ),
@@ -118,88 +122,93 @@ class _WelcomePageState extends State<WelcomePage> {
               style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
             ),
             const Spacer(flex: 1),
-            ValueListenableBuilder(
-              valueListenable: SocketConnection.connected,
-              builder: (context, value, child) => TextButton(
-                onPressed: value ?? true ? null : _connectToServer,
-                child: Selector<User, String>(
-                  selector: (_, user) => user.givenName,
-                  builder: (_, givenName, __) => Text(
-                    value == null || value && givenName.isEmpty
-                        ? 'Connecting...'
-                        : value
-                            ? 'Logged in as $givenName'
-                            : 'Log in',
+            Consumer2<SocketConnection, User>(
+              builder: (context, socket, user, child) {
+                String displayText;
+                if (socket.status == SocketStatus.disconnected) {
+                  displayText = 'Log in';
+                } else if (socket.status == SocketStatus.connecting ||
+                    user.givenName.isEmpty) {
+                  displayText = 'Connecting...';
+                } else {
+                  displayText = 'Logged in as ${user.givenName}';
+                }
+                return TextButton(
+                  onPressed: socket.status == SocketStatus.disconnected
+                      ? _connectToServer
+                      : null,
+                  child: Text(
+                    displayText,
                     style: const TextStyle(fontSize: 30),
                     textAlign: TextAlign.center,
                   ),
-                ),
-              ),
+                );
+              },
             ),
-            ValueListenableBuilder(
-              valueListenable: SocketConnection.connected,
-              builder: (context, value, child) => Visibility(
-                visible: value != true,
+            Consumer<SocketConnection>(
+              builder: (context, socket, child) => Visibility(
+                visible: socket.status != SocketStatus.connected,
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
-                child: const Text('You must be logged in to use the app'),
+                child: child!,
               ),
+              child: const Text('You must be logged in to use the app'),
             ),
             const Spacer(flex: 1),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ValueListenableBuilder(
-                  valueListenable: SocketConnection.connected,
-                  builder: (context, value, child) => SubtitledButton(
+            Consumer<SocketConnection>(
+              builder: (context, socket, child) => Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  SubtitledButton(
                     icon: const Icon(Icons.directions_car),
                     subtitle: const Text('I am a driver'),
-                    onPressed: value == true
-                        ? () => Navigator.push(
+                    onPressed: socket.status == SocketStatus.connected
+                        ? () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const DriverPage(),
                               ),
-                            ).then((_) => _setHandlers())
+                            );
+                            _setHandlers();
+                          }
                         : null,
                   ),
-                ),
-                ValueListenableBuilder(
-                  valueListenable: SocketConnection.connected,
-                  builder: (context, value, child) => SubtitledButton(
+                  SubtitledButton(
                     icon: const Icon(Icons.directions_walk),
                     subtitle: const Text('I am a passenger'),
-                    onPressed: value == true
-                        ? () => Navigator.push(
+                    onPressed: socket.status == SocketStatus.connected
+                        ? () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const PassengerPage(),
                               ),
-                            ).then((_) => _setHandlers())
+                            );
+                            _setHandlers();
+                          }
                         : null,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const Spacer(flex: 2),
-            ValueListenableBuilder(
-              valueListenable: SocketConnection.connected,
-              builder: (context, value, child) => Visibility(
-                visible: value == true,
+            Consumer<SocketConnection>(
+              builder: (context, socket, child) => Visibility(
+                visible: socket.status == SocketStatus.connected,
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
-                child: TextButton(
-                  onPressed: () async {
-                    bool reply = await signOutAlert(
-                      context: context,
-                      content: const SizedBox(),
-                    );
-                    if (reply) SocketConnection.connected.value = false;
-                  },
-                  child: const Text('Sign out', style: TextStyle(fontSize: 25)),
-                ),
+                child: child!,
+              ),
+              child: TextButton(
+                onPressed: () async {
+                  final socket = socketConnection;
+                  final reply = await signOutAlert(context: context);
+                  if (reply) socket.setStatus(SocketStatus.disconnected);
+                },
+                child: const Text('Sign out', style: TextStyle(fontSize: 25)),
               ),
             ),
             const Padding(padding: EdgeInsets.all(12)),

@@ -23,6 +23,8 @@ class PassengerPage extends StatefulWidget {
 
 class _PassengerPageState extends State<PassengerPage>
     with TickerProviderStateMixin {
+  late final SocketConnection socketConnection;
+  late final User user;
   Map<String, dynamic>? driver;
   late StreamSubscription<Position> positionStream;
   ListQueue<LatLng> driverPositions = ListQueue();
@@ -41,9 +43,9 @@ class _PassengerPageState extends State<PassengerPage>
   void connectionHandler(String message) {
     if (!mounted) return;
     if (message == 'done' || message == 'error') {
-      context.read<User>().setUser(null);
-      Navigator.pop(context);
-      if (SocketConnection.channel.closeCode != 1000) {
+      user.setUser(null);
+      Navigator.popUntil(context, (route) => route.isFirst);
+      if (socketConnection.channel.closeCode != 1000) {
         ScaffoldMessenger.of(context).showSnackBar(snackBarConnectionLost);
       }
     }
@@ -83,8 +85,8 @@ class _PassengerPageState extends State<PassengerPage>
               driverArrived = false;
               driverPositions.clear();
               driverRefused = true;
-              SocketConnection.channel
-                  .add(jsonEncode({'type': typeOutOfRange, 'data': {}}));
+              socketConnection
+                  .send(jsonEncode({'type': typeOutOfRange, 'data': {}}));
               break;
             }
             if (followDriver) {
@@ -154,11 +156,11 @@ class _PassengerPageState extends State<PassengerPage>
         break;
       case typeDeleteUserPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
-        context.read<User>().setUserPicture(null);
+        user.setUserPicture(null);
         break;
       case typeDeleteCarPicture:
         ScaffoldMessenger.of(context).showSnackBar(snackBarNSFW);
-        context.read<User>().setCarPicture(data.toString(), null);
+        user.setCarPicture(data.toString(), null);
         break;
       default:
         debugPrint('Invalid type: $type');
@@ -181,7 +183,7 @@ class _PassengerPageState extends State<PassengerPage>
       );
       if (distanceToBusStop > busStopPassengerRange) return;
       inRadius = true;
-      SocketConnection.channel.add(
+      socketConnection.send(
         jsonEncode({
           'type': typeNewPassenger,
           'data': {
@@ -194,7 +196,7 @@ class _PassengerPageState extends State<PassengerPage>
         }),
       );
     } else {
-      SocketConnection.channel.add(
+      socketConnection.send(
         jsonEncode({
           'type': typeUpdatePassenger,
           'data': {
@@ -245,17 +247,16 @@ class _PassengerPageState extends State<PassengerPage>
     countdownSecTimer.cancel();
     countdownDismissTimer.cancel();
     if (reply == true) {
-      SocketConnection.channel
-          .add(jsonEncode({'type': typePingDriver, 'data': true}));
+      socketConnection.send(jsonEncode({'type': typePingDriver, 'data': true}));
     } else {
       if (remainingSeconds.value == 0) {
         requestTimedOut = true;
       } else {
-        SocketConnection.channel
-            .add(jsonEncode({'type': typeStopPassenger, 'data': {}}));
+        socketConnection
+            .send(jsonEncode({'type': typeStopPassenger, 'data': {}}));
         refusedCooldownTimer = Timer(
           const Duration(seconds: 30),
-          () => SocketConnection.channel.add(
+          () => socketConnection.send(
             jsonEncode({
               'type': typeNewPassenger,
               'data': {
@@ -269,8 +270,8 @@ class _PassengerPageState extends State<PassengerPage>
           ),
         );
       }
-      SocketConnection.channel
-          .add(jsonEncode({'type': typePingDriver, 'data': false}));
+      socketConnection
+          .send(jsonEncode({'type': typePingDriver, 'data': false}));
       setState(() {});
     }
   }
@@ -287,8 +288,10 @@ class _PassengerPageState extends State<PassengerPage>
   @override
   void initState() {
     super.initState();
-    SocketConnection.receiveSubscription.onData(socketPassengerHandler);
-    SocketConnection.connectionSubscription.onData(connectionHandler);
+    user = context.read<User>();
+    socketConnection = context.read<SocketConnection>();
+    socketConnection.receiveSubscription.onData(socketPassengerHandler);
+    socketConnection.connectionSubscription.onData(connectionHandler);
     positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -312,10 +315,10 @@ class _PassengerPageState extends State<PassengerPage>
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        if (SocketConnection.connected.value != true || !inRadius) {
+        if (socketConnection.status != SocketStatus.connected || !inRadius) {
           Navigator.pop(context);
         } else if (driver == null || await stopPassengerDialog(context)) {
-          SocketConnection.channel.add(
+          socketConnection.send(
             jsonEncode({'type': typeStopPassenger, 'data': {}}),
           );
           if (context.mounted) Navigator.pop(context);
@@ -328,7 +331,8 @@ class _PassengerPageState extends State<PassengerPage>
             SwitchModeButton(
               context: context,
               skipSendMessage:
-                  SocketConnection.connected.value != true || !inRadius,
+                  socketConnection.status != SocketStatus.connected ||
+                      !inRadius,
               skipDialog: driver == null,
               typeOfUser: TypeOfUser.passenger,
             ),

@@ -252,12 +252,7 @@ class UserProfileInfo extends StatelessWidget {
             const Padding(padding: EdgeInsets.symmetric(vertical: 5.0)),
             if (showSignout)
               TextButton(
-                onPressed: () async {
-                  await signOutAlert(
-                    context: context,
-                    content: const SizedBox(),
-                  );
-                },
+                onPressed: () async => await signOutAlert(context: context),
                 child: const Text(
                   'Sign out',
                   style: TextStyle(fontSize: 16.0),
@@ -320,9 +315,11 @@ class UserProfileCard extends StatelessWidget {
                 if (newImage == null) return;
                 if (!context.mounted) return;
                 context.read<User>().setUserPicture(newImage);
-                SocketConnection.channel.add(
-                  jsonEncode({'type': typeUpdateUserPicture, 'data': newImage}),
-                );
+                context.read<SocketConnection>().channel.add(
+                      jsonEncode(
+                        {'type': typeUpdateUserPicture, 'data': newImage},
+                      ),
+                    );
               },
             ),
           ),
@@ -449,6 +446,7 @@ class SwitchModeButton extends StatelessWidget {
   Widget build(context) {
     return IconButton(
       onPressed: () async {
+        final socket = context.read<SocketConnection>();
         if (skipSendMessage) {
           Navigator.pushReplacement(
             context,
@@ -459,7 +457,7 @@ class SwitchModeButton extends StatelessWidget {
             ),
           );
         } else if (skipDialog || await switchModeDialog(context, typeOfUser)) {
-          SocketConnection.channel.add(
+          socket.channel.add(
             jsonEncode({
               'type': typeOfUser == TypeOfUser.driver
                   ? typeStopDriver

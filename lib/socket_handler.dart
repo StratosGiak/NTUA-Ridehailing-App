@@ -5,33 +5,33 @@ import 'package:flutter/material.dart';
 import 'package:ntua_ridehailing/constants.dart';
 
 class SocketConnection with ChangeNotifier {
-  static final receiveController = StreamController<String>();
-  static final receiveSubscription =
-      receiveController.stream.listen((event) {});
-  static final connectionController = StreamController<String>();
-  static final connectionSubscription =
-      connectionController.stream.listen((event) {});
-  static late WebSocket channel;
-  static ValueNotifier<bool?> connected = ValueNotifier(false);
+  final receiveController = StreamController<String>();
+  final connectionController = StreamController<String>();
+  late final StreamSubscription<String> receiveSubscription;
+  late final StreamSubscription<String> connectionSubscription;
+  late WebSocket channel;
+  SocketStatus status = SocketStatus.disconnected;
 
-  SocketConnection._();
+  SocketConnection() {
+    receiveSubscription = receiveController.stream.listen((event) {});
+    connectionSubscription = connectionController.stream.listen((event) {});
+  }
 
-  static Future<void> create(String token) async {
-    SocketConnection._();
-    connected.value = null;
+  Future<void> create(String token) async {
+    setStatus(SocketStatus.connecting);
     final result = await connect(token);
     if (result != null) {
-      connected.value = true;
+      setStatus(SocketStatus.connected);
       channel = result;
       channel.listen(
         (data) => receiveController.add(data),
         onDone: () => _onDone(),
-        onError: (error) => _onError(),
+        onError: (error) => _onError(error),
       );
     }
   }
 
-  static Future<WebSocket?> connect(String token) async {
+  Future<WebSocket?> connect(String token) async {
     try {
       return await WebSocket.connect(
         apiHost,
@@ -39,18 +39,27 @@ class SocketConnection with ChangeNotifier {
       ).timeout(const Duration(seconds: 10));
     } catch (error) {
       await Future.delayed(const Duration(seconds: 2));
-      connected.value = false;
+      setStatus(SocketStatus.disconnected);
       return null;
     }
   }
 
-  static void _onDone() {
-    connected.value = false;
+  void send(dynamic data) {
+    channel.add(data);
+  }
+
+  void _onDone() {
+    setStatus(SocketStatus.disconnected);
     connectionController.sink.add('done');
   }
 
-  static void _onError() {
-    connected.value = false;
+  void _onError(error) {
+    setStatus(SocketStatus.disconnected);
     connectionController.sink.add('error');
+  }
+
+  void setStatus(SocketStatus newStatus) {
+    status = newStatus;
+    notifyListeners();
   }
 }

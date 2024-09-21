@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:ntua_ridehailing/socket_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:ntua_ridehailing/providers.dart';
 import 'package:ntua_ridehailing/welcome.dart';
@@ -17,8 +18,11 @@ class RidehailingApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => User(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => User()),
+        ChangeNotifierProvider(create: (_) => SocketConnection()),
+      ],
       child: MaterialApp(
         title: 'NTUA-Ridehailing',
         theme: ThemeData(

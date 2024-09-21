@@ -19,6 +19,7 @@ import 'package:ntua_ridehailing/socket_handler.dart';
 import 'package:ntua_ridehailing/widgets/common_widgets.dart';
 import 'package:mime/mime.dart';
 import 'package:image/image.dart' as img;
+import 'package:provider/provider.dart';
 import 'constants.dart';
 
 Color? getAverageColor(File file) {
@@ -156,12 +157,12 @@ Future<String?> uploadImage(
 
 Future<bool> signOutAlert({
   required BuildContext context,
-  required Widget content,
 }) async {
   void onConfirmPressed(BuildContext context) async {
+    final socket = context.read<SocketConnection>();
     await Authenticator.endSession();
-    SocketConnection.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
-    SocketConnection.connected.value = false;
+    socket.channel.add(jsonEncode({'type': typeSignout, 'data': {}}));
+    socket.setStatus(SocketStatus.disconnected);
     if (!context.mounted) return;
     Navigator.popUntil(context, (route) => route.isFirst);
   }
@@ -179,7 +180,7 @@ Future<bool> signOutAlert({
     builder: (context) => AlertDialog.adaptive(
       icon: const Icon(Icons.logout),
       title: const Text('Really sign out?'),
-      content: content,
+      content: const Text('This action will sign you out of your account'),
       actions: Platform.isIOS
           ? [
               CupertinoDialogAction(
@@ -334,6 +335,7 @@ Future<void> arrivedDialog({
   required List<Map<String, dynamic>> users,
   required TypeOfUser typeOfUser,
 }) async {
+  final socket = context.read<SocketConnection>();
   List<ValueNotifier<double>> ratings = List.generate(
     users.length,
     (index) => ValueNotifier(0),
@@ -460,14 +462,15 @@ Future<void> arrivedDialog({
   if (ModalRoute.of(context)?.isCurrent != true) Navigator.pop(context);
   final reply = await Navigator.push<bool>(context, dialogRoute);
   if (reply != true) return;
-  final ratingList = ratings.map((e) => e.value).toList();
-  SocketConnection.channel.add(
+  List<Map<String, dynamic>> ratingList = [];
+  for (var i = 0; i < users.length; i++) {
+    ratingList
+        .add({'id': users[i]['id'] as String, 'rating': ratings[i].value});
+  }
+  socket.channel.add(
     jsonEncode({
       'type': typeSendRatings,
-      'data': {
-        'ids': users.map((e) => e['id']).toList(),
-        'ratings': ratingList,
-      },
+      'data': ratingList,
     }),
   );
 }
