@@ -126,7 +126,8 @@ Future<String?> uploadImage(
   String path,
   String fileType,
 ) async {
-  if (fileType != 'image/jpeg' && fileType != 'image/png') return null;
+  if (fileType != 'image/jpeg' && fileType != 'image/png' ||
+      Authenticator.accessToken == null) return null;
   var request = http.MultipartRequest(
     'POST',
     Uri.parse('$mediaHost/post/images/${typeOfImage.name}'),
@@ -139,14 +140,13 @@ Future<String?> uploadImage(
     ),
   );
   request.headers
-      .addAll({HttpHeaders.authorizationHeader: Authenticator.idToken ?? ''});
+      .addAll({HttpHeaders.authorizationHeader: Authenticator.accessToken!});
   final response = await http.Response.fromStream(await request.send());
   if (response.statusCode == 200) {
     return response.body;
   }
   if (response.statusCode == 401) {
-    await Authenticator.authenticate();
-    if (!context.mounted) return null;
+    await Authenticator.refresh();
     return uploadImage(context, typeOfImage, path, fileType);
   }
   if (response.statusCode == 413 && context.mounted) {

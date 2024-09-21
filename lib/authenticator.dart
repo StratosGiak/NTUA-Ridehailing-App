@@ -10,7 +10,13 @@ class Authenticator {
   }
 
   static const appAuth = FlutterAppAuth();
-  static String? idToken;
+  static String? _idToken;
+  static String? _accessToken;
+  static String? _refreshToken;
+
+  static String? get idToken => _idToken;
+  static String? get accessToken => _accessToken;
+  static String? get refreshToken => _refreshToken;
 
   static Future<String?> authenticate() async {
     final request = AuthorizationTokenRequest(
@@ -21,19 +27,37 @@ class Authenticator {
       additionalParameters: {'kc_idp_hint': 'saml'},
     );
     final response = await appAuth.authorizeAndExchangeCode(request);
-    idToken = response?.idToken;
-    return idToken;
+    _idToken = response?.idToken;
+    _accessToken = response?.accessToken;
+    _refreshToken = response?.refreshToken;
+    return _idToken;
   }
 
-  static Future<EndSessionResponse?> endSession() {
+  static Future<String?> refresh() async {
+    final request = TokenRequest(
+      authClientID,
+      '$appScheme:/auth',
+      issuer: authIssuer,
+      refreshToken: _refreshToken,
+      scopes: ['openid', 'profile', 'email'],
+    );
+    final response = await appAuth.token(request);
+    _accessToken = response?.accessToken;
+    _refreshToken = response?.refreshToken;
+    return _accessToken;
+  }
+
+  static Future<void> endSession() async {
     final request = EndSessionRequest(
       issuer: authIssuer,
-      idTokenHint: idToken,
+      idTokenHint: _idToken,
       postLogoutRedirectUrl: '$appScheme:/',
     );
-    return appAuth.endSession(request).then((response) {
-      if (response != null) idToken = null;
-      return response;
-    });
+    final response = await appAuth.endSession(request);
+    if (response != null) {
+      _idToken = null;
+      _accessToken = null;
+      _refreshToken = null;
+    }
   }
 }
