@@ -24,8 +24,9 @@ class DriverPage extends StatefulWidget {
 }
 
 class _DriverPageState extends State<DriverPage> {
-  late final SocketConnection socketConnection;
-  late final User user;
+  late final SocketConnection socketConnection =
+      context.read<SocketConnection>();
+  late final User user = context.read<User>();
   List<Map<String, dynamic>> passengers = [];
   final Stream _getPassengersStream =
       Stream.periodic(const Duration(seconds: 2), (int count) {});
@@ -545,8 +546,6 @@ class _DriverPageState extends State<DriverPage> {
   @override
   void initState() {
     super.initState();
-    user = context.read<User>();
-    socketConnection = context.read<SocketConnection>();
     socketConnection.receiveSubscription.onData(socketDriverHandler);
     socketConnection.connectionSubscription.onData(connectionHandler);
     _getPassengersStreamSubscription = _getPassengersStream.listen((event) {

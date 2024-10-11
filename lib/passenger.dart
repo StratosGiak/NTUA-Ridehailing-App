@@ -21,10 +21,10 @@ class PassengerPage extends StatefulWidget {
   State<PassengerPage> createState() => _PassengerPageState();
 }
 
-class _PassengerPageState extends State<PassengerPage>
-    with TickerProviderStateMixin {
-  late final SocketConnection socketConnection;
-  late final User user;
+class _PassengerPageState extends State<PassengerPage> {
+  late final SocketConnection socketConnection =
+      context.read<SocketConnection>();
+  late final User user = context.read<User>();
   Map<String, dynamic>? driver;
   late StreamSubscription<Position> positionStream;
   ListQueue<LatLng> driverPositions = ListQueue();
@@ -288,8 +288,6 @@ class _PassengerPageState extends State<PassengerPage>
   @override
   void initState() {
     super.initState();
-    user = context.read<User>();
-    socketConnection = context.read<SocketConnection>();
     socketConnection.receiveSubscription.onData(socketPassengerHandler);
     socketConnection.connectionSubscription.onData(connectionHandler);
     positionStream = Geolocator.getPositionStream(

@@ -20,8 +20,9 @@ class WelcomePage extends StatefulWidget {
 }
 
 class _WelcomePageState extends State<WelcomePage> {
-  late final SocketConnection socketConnection;
-  late final User user;
+  late final SocketConnection socketConnection =
+      context.read<SocketConnection>();
+  late final User user = context.read<User>();
 
   void _socketLoginHandler(message) {
     final decoded = jsonDecode(message);
@@ -84,8 +85,6 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   void initState() {
     super.initState();
-    user = context.read<User>();
-    socketConnection = context.read<SocketConnection>();
     _setHandlers();
     Geolocator.requestPermission();
     //_connectToServer();
@@ -199,9 +198,10 @@ class _WelcomePageState extends State<WelcomePage> {
                 maintainState: true,
                 child: TextButton(
                   onPressed: () async {
-                    final socket = socketConnection;
                     final reply = await signOutAlert(context: context);
-                    if (reply) socket.setStatus(SocketStatus.disconnected);
+                    if (reply) {
+                      socketConnection.setStatus(SocketStatus.disconnected);
+                    }
                   },
                   child:
                       const Text('Sign out', style: TextStyle(fontSize: 25.0)),
