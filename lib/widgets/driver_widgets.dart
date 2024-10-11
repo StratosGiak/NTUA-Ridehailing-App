@@ -375,47 +375,52 @@ class PassengerInfoBox extends StatelessWidget {
             ),
           )
         : Image.asset('assets/images/blank_profile.png');
-    final children = [
-      const Padding(
-        padding: EdgeInsets.only(top: 8.0),
-        child: Text(
-          'Passengers',
-          style: TextStyle(fontSize: 20),
-          textAlign: TextAlign.center,
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8.0),
+          child: Text(
+            'Passengers',
+            style: TextStyle(fontSize: 20),
+            textAlign: TextAlign.center,
+          ),
         ),
-      ),
-      ListView.separated(
-        shrinkWrap: true,
-        padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 16.0),
-        itemBuilder: (context, index) {
-          return ListTile(
-            onTap: () => onTileTap(index),
-            leading: SizedBox(
-              width: 55,
-              height: 55,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30.0),
-                child: Material(
+        ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(0),
+          itemBuilder: (context, index) {
+            return ListTile(
+              onTap: () => onTileTap(index),
+              leading: SizedBox(
+                width: 55,
+                height: 55,
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(30.0),
-                  child: picture(index),
+                  child: Material(
+                    borderRadius: BorderRadius.circular(30.0),
+                    child: picture(index),
+                  ),
                 ),
               ),
-            ),
-            title: Text("${passengers[index]['full_name']}"),
-            subtitle: passengers[index]['ratings_count'] > 0
-                ? RatingBarWithCount(user: passengers[index])
-                : null,
-            tileColor: Colors.white,
-            trailing: Icon(
-              Icons.circle,
-              color: colors[passengers[index]['id'].hashCode % 10],
-            ),
-          );
-        },
-        separatorBuilder: (context, index) => const Divider(),
-        itemCount: passengers.length,
-      ),
-    ];
-    return Container(color: Colors.white, child: Column(children: children));
+              title: Text("${passengers[index]['full_name']}"),
+              subtitle: passengers[index]['ratings_count'] > 0
+                  ? RatingBarWithCount(user: passengers[index])
+                  : null,
+              trailing: Material(
+                elevation: 1,
+                type: MaterialType.circle,
+                color: colors[passengers[index]['id'].hashCode % 10],
+                child: const SizedBox(
+                  height: 22,
+                  width: 22,
+                ),
+              ),
+            );
+          },
+          separatorBuilder: (context, index) => const Divider(),
+          itemCount: passengers.length,
+        ),
+      ],
+    );
   }
 }

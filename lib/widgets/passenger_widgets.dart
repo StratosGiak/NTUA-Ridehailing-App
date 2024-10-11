@@ -103,18 +103,18 @@ class DriverInfoBox extends StatelessWidget {
                 ),
               )
             : Image.asset('assets/images/blank_profile.png');
-    final children = [
-      const Padding(
-        padding: EdgeInsets.only(top: 8.0),
-        child: Text(
-          'Driver',
-          style: TextStyle(fontSize: 20),
-          textAlign: TextAlign.center,
+    return Column(
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 8.0),
+          child: Text(
+            'Driver',
+            style: TextStyle(fontSize: 20),
+            textAlign: TextAlign.center,
+          ),
         ),
-      ),
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: ListTile(
+        const SizedBox(height: 8.0),
+        ListTile(
           onTap: onTileTap,
           leading: SizedBox(
             width: 55,
@@ -127,7 +127,6 @@ class DriverInfoBox extends StatelessWidget {
               ),
             ),
           ),
-          tileColor: Colors.lightBlue,
           title: Text("${driver['full_name']}"),
           subtitle: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +143,7 @@ class DriverInfoBox extends StatelessWidget {
                       padding: EdgeInsets.symmetric(horizontal: 4.0),
                     ),
                     ColorIndicator(
-                      hasBorder: true,
+                      elevation: 1,
                       height: 16,
                       width: 50,
                       color: Color(driver['car']['color']),
@@ -161,9 +160,8 @@ class DriverInfoBox extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    ];
-    return Container(color: Colors.white, child: Column(children: children));
+      ],
+    );
   }
 }
 
@@ -197,42 +195,43 @@ class MapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final children = [
-      Expanded(
-        child: CustomMap(
-          typeOfUser: TypeOfUser.passenger,
-          mapController: mapController,
-          markers: usersToMarkers([driver]),
-          coordinates: coordinates,
-          showArrived: showArrived,
-          onMove: onMove,
-          moveCameraController: moveCameraController,
-          onPressGPS: () {
+    return Column(
+      children: [
+        Expanded(
+          child: CustomMap(
+            typeOfUser: TypeOfUser.passenger,
+            mapController: mapController,
+            markers: usersToMarkers([driver]),
+            coordinates: coordinates,
+            showArrived: showArrived,
+            onMove: onMove,
+            moveCameraController: moveCameraController,
+            onPressGPS: () {
+              moveCameraController.moveCamera(
+                LatLng(coordinates!.latitude, coordinates!.longitude),
+                15.5,
+              );
+              onPressGPS();
+            },
+            followGPS: followGPS,
+            polylinePoints: driverPositions.toList(),
+          ),
+        ),
+        DriverInfoBox(
+          driver: driver,
+          showDistance: showDistance,
+          onTileTap: () {
             moveCameraController.moveCamera(
-              LatLng(coordinates!.latitude, coordinates!.longitude),
+              LatLng(
+                driver['coords']['latitude'],
+                driver['coords']['longitude'],
+              ),
               15.5,
             );
-            onPressGPS();
+            onMove();
           },
-          followGPS: followGPS,
-          polylinePoints: driverPositions.toList(),
         ),
-      ),
-      DriverInfoBox(
-        driver: driver,
-        showDistance: showDistance,
-        onTileTap: () {
-          moveCameraController.moveCamera(
-            LatLng(
-              driver['coords']['latitude'],
-              driver['coords']['longitude'],
-            ),
-            15.5,
-          );
-          onMove();
-        },
-      ),
-    ];
-    return Column(children: children);
+      ],
+    );
   }
 }
