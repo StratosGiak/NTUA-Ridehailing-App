@@ -95,69 +95,68 @@ class _WelcomePageState extends State<WelcomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.help),
-                    iconSize: 35,
-                    onPressed: () => (),
-                  ),
-                  Consumer<SocketConnection>(
-                    builder: (context, socket, child) => UserAvatarButton(
+        child: Consumer<SocketConnection>(
+          builder: (context, socket, _) => Column(
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.help),
+                      iconSize: 35.0,
+                      onPressed: () => (),
+                    ),
+                    UserAvatarButton(
                       enablePress: socket.status == SocketStatus.connected,
                       showSignout: false,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Spacer(flex: 1),
-            const Text(
-              'LOGO',
-              style: TextStyle(fontSize: 50, fontWeight: FontWeight.w900),
-            ),
-            const Spacer(flex: 1),
-            Consumer2<SocketConnection, User>(
-              builder: (context, socket, user, child) {
-                String displayText;
-                if (socket.status == SocketStatus.disconnected) {
-                  displayText = 'Log in';
-                } else if (socket.status == SocketStatus.connecting ||
-                    user.givenName.isEmpty) {
-                  displayText = 'Connecting...';
-                } else {
-                  displayText = 'Logged in as ${user.givenName}';
-                }
-                return TextButton(
-                  onPressed: socket.status == SocketStatus.disconnected
-                      ? _connectToServer
-                      : null,
-                  child: Text(
-                    displayText,
-                    style: const TextStyle(fontSize: 30),
-                    textAlign: TextAlign.center,
-                  ),
-                );
-              },
-            ),
-            Consumer<SocketConnection>(
-              builder: (context, socket, child) => Visibility(
+              const Spacer(flex: 1),
+              const Text(
+                'NTUA\nRidehailing',
+                style: TextStyle(
+                  fontSize: 45.0,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Spacer(flex: 1),
+              Consumer<User>(
+                builder: (context, user, _) {
+                  String displayText;
+                  if (socket.status == SocketStatus.disconnected) {
+                    displayText = 'Log in';
+                  } else if (socket.status == SocketStatus.connecting ||
+                      user.givenName.isEmpty) {
+                    displayText = 'Connecting...';
+                  } else {
+                    displayText = 'Logged in as ${user.givenName}';
+                  }
+                  return TextButton(
+                    onPressed: socket.status == SocketStatus.disconnected
+                        ? _connectToServer
+                        : null,
+                    child: Text(
+                      displayText,
+                      style: const TextStyle(fontSize: 30.0),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                },
+              ),
+              Visibility(
                 visible: socket.status != SocketStatus.connected,
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
-                child: child!,
+                child: const Text('You must be logged in to use the app'),
               ),
-              child: const Text('You must be logged in to use the app'),
-            ),
-            const Spacer(flex: 1),
-            Consumer<SocketConnection>(
-              builder: (context, socket, child) => Row(
+              const Spacer(flex: 1),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   SubtitledButton(
@@ -192,27 +191,25 @@ class _WelcomePageState extends State<WelcomePage> {
                   ),
                 ],
               ),
-            ),
-            const Spacer(flex: 2),
-            Consumer<SocketConnection>(
-              builder: (context, socket, child) => Visibility(
+              const Spacer(flex: 2),
+              Visibility(
                 visible: socket.status == SocketStatus.connected,
                 maintainSize: true,
                 maintainAnimation: true,
                 maintainState: true,
-                child: child!,
+                child: TextButton(
+                  onPressed: () async {
+                    final socket = socketConnection;
+                    final reply = await signOutAlert(context: context);
+                    if (reply) socket.setStatus(SocketStatus.disconnected);
+                  },
+                  child:
+                      const Text('Sign out', style: TextStyle(fontSize: 25.0)),
+                ),
               ),
-              child: TextButton(
-                onPressed: () async {
-                  final socket = socketConnection;
-                  final reply = await signOutAlert(context: context);
-                  if (reply) socket.setStatus(SocketStatus.disconnected);
-                },
-                child: const Text('Sign out', style: TextStyle(fontSize: 25)),
-              ),
-            ),
-            const Padding(padding: EdgeInsets.all(12)),
-          ],
+              const Padding(padding: EdgeInsets.all(12.0)),
+            ],
+          ),
         ),
       ),
     );
