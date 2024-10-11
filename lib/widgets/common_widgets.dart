@@ -522,7 +522,16 @@ class CustomMap extends StatefulWidget {
   State<CustomMap> createState() => _CustomMapState();
 }
 
-class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
+class _CustomMapState extends State<CustomMap>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  );
+  late final Animation<double> animation =
+      CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+  void Function()? moveCallback;
+
   @override
   void initState() {
     super.initState();
@@ -536,25 +545,20 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
     final lngTween =
         Tween<double>(begin: camera.center.longitude, end: dest.longitude);
     final zoomTween = Tween<double>(begin: camera.zoom, end: zoom);
-    final controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    final Animation<double> animation =
-        CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
-    controller.addListener(() {
+
+    if (moveCallback != null) {
+      controller.removeListener(moveCallback!);
+      controller.reset();
+    }
+
+    moveCallback = () {
       widget.mapController.move(
         LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
         zoomTween.evaluate(animation),
       );
-    });
-    animation.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        controller.dispose();
-      } else if (status == AnimationStatus.dismissed) {
-        controller.dispose();
-      }
-    });
+    };
+
+    controller.addListener(moveCallback!);
     controller.forward();
   }
 
@@ -571,8 +575,12 @@ class _CustomMapState extends State<CustomMap> with TickerProviderStateMixin {
         interactionOptions: const InteractionOptions(
           flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
         ),
-        onPositionChanged: (position, hasGesture) {
-          if (hasGesture) widget.onMove();
+        onPointerDown: (event, point) {
+          if (moveCallback != null) {
+            controller.removeListener(moveCallback!);
+            controller.reset();
+          }
+          widget.onMove();
         },
       ),
       children: [
