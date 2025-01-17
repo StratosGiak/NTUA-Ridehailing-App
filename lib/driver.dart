@@ -620,35 +620,38 @@ class _DriverPageState extends State<DriverPage> {
             const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
           ],
         ),
-        body: !driving
-            ? CarListScreen(
-                carList: CarList(
-                  selected: selectedCar,
-                  onTap: () => setState(() {}),
-                  onEditPressed: (id) => _createCar(id),
-                ),
-                onPressed: context.watch<User>().cars.length < 3
-                    ? () => _createCar(null)
-                    : null,
-              )
-            : !waitingForResponse || passengers.isEmpty
-                ? DriverStatusScreen(
-                    inRadius: inRadius,
-                    waitingForPassengers: waitingForResponse,
-                    requestTimeout: requestTimedOut,
-                    passengersCancelled: passengersCancelled,
-                  )
-                : MapScreen(
-                    context: context,
-                    passengers: passengers,
-                    mapController: mapController,
-                    coordinates: coordinates,
-                    showArrived: showArrived,
-                    onMove: () => setState(() => followDriver = false),
-                    moveCameraController: moveCameraController,
-                    onPressGPS: () => setState(() => followDriver = true),
-                    followGPS: followDriver,
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: !driving
+              ? CarListScreen(
+                  carList: CarList(
+                    selected: selectedCar,
+                    onTap: () => setState(() {}),
+                    onEditPressed: (id) => _createCar(id),
                   ),
+                  onPressed: context.watch<User>().cars.length < 3
+                      ? () => _createCar(null)
+                      : null,
+                )
+              : !waitingForResponse || passengers.isEmpty
+                  ? DriverStatusScreen(
+                      inRadius: inRadius,
+                      waitingForPassengers: waitingForResponse,
+                      requestTimeout: requestTimedOut,
+                      passengersCancelled: passengersCancelled,
+                    )
+                  : MapScreen(
+                      context: context,
+                      passengers: passengers,
+                      mapController: mapController,
+                      coordinates: coordinates,
+                      showArrived: showArrived,
+                      onMove: () => setState(() => followDriver = false),
+                      moveCameraController: moveCameraController,
+                      onPressGPS: () => setState(() => followDriver = true),
+                      followGPS: followDriver,
+                    ),
+        ),
         floatingActionButton: Visibility(
           visible: selectedCar.value != null && passengers.isEmpty,
           child: Padding(

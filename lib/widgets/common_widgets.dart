@@ -644,8 +644,10 @@ class _CustomMapState extends State<CustomMap>
         const SimpleAttributionWidget(
           source: Text('OpenStreetMap contributors'),
         ),
-        Visibility(
-          visible: widget.showArrived,
+        AnimatedOpacity(
+          curve: Curves.fastOutSlowIn,
+          duration: const Duration(milliseconds: 200),
+          opacity: widget.showArrived ? 1 : 0,
           child: Center(
             child: Padding(
               padding: const EdgeInsets.all(10.0),

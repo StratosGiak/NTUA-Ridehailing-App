@@ -338,25 +338,28 @@ class _PassengerPageState extends State<PassengerPage> {
             const Padding(padding: EdgeInsets.symmetric(horizontal: 5.0)),
           ],
         ),
-        body: !inRadius || driver == null
-            ? PassengerStatusScreen(
-                inRadius: inRadius,
-                driverRefused: driverRefused,
-                requestTimedOut: requestTimedOut,
-              )
-            : MapScreen(
-                context: context,
-                driver: driver!,
-                mapController: mapController,
-                coordinates: coordinates,
-                showArrived: showArrived,
-                showDistance: !driverArrived,
-                onMove: () => setState(() => followDriver = false),
-                moveCameraController: moveCameraController,
-                onPressGPS: () => setState(() => followDriver = true),
-                followGPS: followDriver,
-                driverPositions: driverPositions,
-              ),
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: !inRadius || driver == null
+              ? PassengerStatusScreen(
+                  inRadius: inRadius,
+                  driverRefused: driverRefused,
+                  requestTimedOut: requestTimedOut,
+                )
+              : MapScreen(
+                  context: context,
+                  driver: driver!,
+                  mapController: mapController,
+                  coordinates: coordinates,
+                  showArrived: showArrived,
+                  showDistance: !driverArrived,
+                  onMove: () => setState(() => followDriver = false),
+                  moveCameraController: moveCameraController,
+                  onPressGPS: () => setState(() => followDriver = true),
+                  followGPS: followDriver,
+                  driverPositions: driverPositions,
+                ),
+        ),
       ),
     );
   }
