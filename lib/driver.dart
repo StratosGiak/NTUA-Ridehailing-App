@@ -153,7 +153,6 @@ class _DriverPageState extends State<DriverPage> {
       if (inRadius) {
         socketConnection.send(jsonEncode({'type': typeStopDriver, 'data': {}}));
       }
-      inRadius = false;
     } else {
       if (positionStream.isPaused) {
         positionStream.resume();
