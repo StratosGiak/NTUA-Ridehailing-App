@@ -525,10 +525,7 @@ class CustomMap extends StatefulWidget {
 
 class _CustomMapState extends State<CustomMap>
     with SingleTickerProviderStateMixin {
-  late final AnimationController controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1000),
-  );
+  late final AnimationController controller;
   late final Animation<double> animation =
       CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
   void Function()? moveCallback;
@@ -536,7 +533,17 @@ class _CustomMapState extends State<CustomMap>
   @override
   void initState() {
     super.initState();
+    controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
     widget.moveCameraController.moveCamera = moveCamera;
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 
   void moveCamera(LatLng dest, double zoom) {
