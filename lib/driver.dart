@@ -237,6 +237,7 @@ class _DriverPageState extends State<DriverPage> {
   }
 
   Future<void> _createCar(String? id) async {
+    final node = FocusNode();
     bool imageChanged = false;
     ValueNotifier<({String? imagePath, String? mimeType})> selectedImage =
         ValueNotifier((imagePath: null, mimeType: null));
@@ -403,52 +404,60 @@ class _DriverPageState extends State<DriverPage> {
           _licensePlateController.text = car.license;
           _modelNameController.text = car.model;
         }
-        return Center(
-          child: Stack(
-            alignment: const FractionalOffset(0.5, 0),
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(color: Colors.transparent, height: 80, width: 160),
-                  Container(
-                    width: min(MediaQuery.sizeOf(context).width - 2 * 25, 350),
-                    clipBehavior: Clip.hardEdge,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
+        return GestureDetector(
+          onTap: () => FocusScope.of(context).requestFocus(node),
+          child: Center(
+            child: Stack(
+              alignment: const FractionalOffset(0.5, 0),
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      color: Colors.transparent,
+                      height: 80,
+                      width: 160,
                     ),
-                    child: Material(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: dialogChildren,
+                    Container(
+                      width:
+                          min(MediaQuery.sizeOf(context).width - 2 * 25, 350),
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Material(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 34, 24, 0),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: dialogChildren,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              ValueListenableBuilder(
-                valueListenable: selectedImage,
-                builder: (context, value, child) {
-                  if (value.imagePath != null) {
-                    return ImageWithPrompt(
-                      imageProvider: Image.file(File(value.imagePath!)).image,
+                  ],
+                ),
+                ValueListenableBuilder(
+                  valueListenable: selectedImage,
+                  builder: (context, value, child) {
+                    if (value.imagePath != null) {
+                      return ImageWithPrompt(
+                        imageProvider: Image.file(File(value.imagePath!)).image,
+                        onTap: onTap,
+                      );
+                    }
+                    return NetworkImageWithPlaceholder(
                       onTap: onTap,
+                      typeOfImage: TypeOfImage.cars,
+                      imageUrl: car?.picture,
                     );
-                  }
-                  return NetworkImageWithPlaceholder(
-                    onTap: onTap,
-                    typeOfImage: TypeOfImage.cars,
-                    imageUrl: car?.picture,
-                  );
-                },
-              ),
-            ],
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
