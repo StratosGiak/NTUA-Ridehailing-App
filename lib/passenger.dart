@@ -293,7 +293,7 @@ class _PassengerPageState extends State<PassengerPage> {
     positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 20,
+        distanceFilter: distanceFilter,
       ),
     ).listen(_onPositionChanged);
     _sendPassenger();
