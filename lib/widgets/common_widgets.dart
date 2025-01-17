@@ -303,6 +303,8 @@ class UserProfileCard extends StatelessWidget {
               typeOfImage: TypeOfImage.users,
               imageUrl: value,
               onTap: () async {
+                final user = context.read<User>();
+                final socket = context.read<SocketConnection>();
                 final result = await pickImage(imageQuality: userImageQuality);
                 if (result == null || result.mimeType == null) return;
                 final newImage = await uploadImage(
@@ -313,13 +315,12 @@ class UserProfileCard extends StatelessWidget {
                   result.mimeType!,
                 );
                 if (newImage == null) return;
-                if (!context.mounted) return;
-                context.read<User>().setUserPicture(newImage);
-                context.read<SocketConnection>().channel.add(
-                      jsonEncode(
-                        {'type': typeUpdateUserPicture, 'data': newImage},
-                      ),
-                    );
+                user.setUserPicture(newImage);
+                socket.channel.add(
+                  jsonEncode(
+                    {'type': typeUpdateUserPicture, 'data': newImage},
+                  ),
+                );
               },
             ),
           ),
