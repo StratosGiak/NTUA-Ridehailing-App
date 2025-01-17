@@ -107,9 +107,15 @@ class _WelcomePageState extends State<WelcomePage> {
                       iconSize: 35.0,
                       onPressed: () => (),
                     ),
-                    UserAvatarButton(
-                      enablePress: socket.status == SocketStatus.connected,
-                      showSignout: false,
+                    Visibility(
+                      visible: socket.status == SocketStatus.connected,
+                      maintainSize: true,
+                      maintainAnimation: true,
+                      maintainState: true,
+                      child: UserAvatarButton(
+                        enablePress: socket.status == SocketStatus.connected,
+                        showSignout: false,
+                      ),
                     ),
                   ],
                 ),
