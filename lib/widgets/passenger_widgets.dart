@@ -89,8 +89,8 @@ class DriverInfoBox extends StatelessWidget {
                   child: InkWell(
                     onTap: () => showDriverPictures(
                       context,
-                      driver['picture'],
-                      driver['car']['picture'],
+                      userPicture: driver['picture'],
+                      carPicture: driver['car']['picture'],
                     ),
                     splashFactory: InkSplash.splashFactory,
                   ),

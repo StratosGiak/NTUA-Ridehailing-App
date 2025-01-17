@@ -716,11 +716,22 @@ void showPassengerPicture(BuildContext context, String pictureURL) =>
     );
 
 void showDriverPictures(
-  BuildContext context,
+  BuildContext context, {
   String? userPicture,
   String? carPicture,
-) {
+}) {
   List<Widget> images = [
+    if (carPicture != null)
+      Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: CachedNetworkImage(
+          cacheManager: CustomCacheManager(),
+          imageUrl: '$mediaHost/images/cars/$carPicture',
+          placeholder: (context, url) =>
+              const CircularProgressIndicator.adaptive(),
+          errorWidget: (context, url, error) => const Icon(Icons.error),
+        ),
+      ),
     if (userPicture != null)
       Padding(
         padding: const EdgeInsets.all(8.0),
@@ -739,17 +750,6 @@ void showDriverPictures(
           ),
           errorWidget: (context, url, error) =>
               const Icon(Icons.error, size: 80),
-        ),
-      ),
-    if (carPicture != null)
-      Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: CachedNetworkImage(
-          cacheManager: CustomCacheManager(),
-          imageUrl: '$mediaHost/images/cars/$carPicture',
-          placeholder: (context, url) =>
-              const CircularProgressIndicator.adaptive(),
-          errorWidget: (context, url, error) => const Icon(Icons.error),
         ),
       ),
   ];
