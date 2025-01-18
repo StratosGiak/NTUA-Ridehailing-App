@@ -1,16 +1,37 @@
-# ntua_ridehailing
+# NTUA Ridehailing
 
-A new Flutter project.
+A ride-sharing app made for students of the National Technical University of Athens.
+Users can choose to be drivers or passengers, and the app will coordinate the shared ride with their fellow students.
 
-## Getting Started
+Developed as part of my thesis. More info can be found [here](https://github.com/StratosGiak/Thesis)
 
-This project is a starting point for a Flutter application.
+## Preview
 
-A few resources to get you started if this is your first Flutter project:
+<table>
+    <thead>
+        <tr>
+            <th>
+                <center>
+                    Screenshots
+                </center>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td>
+            <img src="samples/app_welcome.png" height=480>
+            <img src="samples/app_map.png" height=480>
+            <img src="samples/app_car_edit.png" height=480>
+        </td>
+    </tr>
+    </tbody>
+</table>
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+|              Managing cars               |
+| :--------------------------------------: |
+| <img src="samples/demo1.gif" height=480> |
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+|              Sharing a ride              |
+| :--------------------------------------: |
+| <img src="samples/demo2.gif" height=480> |
